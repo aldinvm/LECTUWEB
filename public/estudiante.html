@@ -550,7 +550,8 @@
         `;
 
         try {
-          const res = await fetch('/api/clases');
+const usuarioActual = sessionStorage.getItem('username') || 'Desconocido';
+          const res = await fetch(`/api/clases?usuario=${usuarioActual}`);
           const lecciones = await res.json();
           const grid = document.getElementById('gridLecciones');
 
@@ -561,7 +562,7 @@
 
           grid.innerHTML = '';
           lecciones.forEach(lec => {
-            const esCompletada = localStorage.getItem(`leccion_completada_${lec.id}`) === 'true';
+            const esCompletada = lec.completada > 0;
             grid.innerHTML += `
               <div class="leccion-card">
                 <div>

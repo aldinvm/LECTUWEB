@@ -239,7 +239,7 @@ async function toggleResultados() {
       const div = document.getElementById('contenedorResultados');
       const grid = document.getElementById('gridLecciones');
       
-      if (div.style.display === 'none') {
+      if (div.style.display === 'none' || div.style.display === '') {
         div.style.display = 'block';
         grid.style.display = 'none'; 
         

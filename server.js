@@ -14,9 +14,16 @@ app.post('/api/login', (req, res) => {
   });
 });
 
-// Obtener todas las lecciones
+// Obtener lecciones y verificar si el usuario ya las completó
 app.get('/api/clases', (req, res) => {
-  db.all('SELECT * FROM lecturas', [], (err, rows) => {
+  const usuario = req.query.usuario || 'Desconocido';
+  const query = `
+    SELECT l.*, 
+    (SELECT COUNT(*) FROM resultados r WHERE r.lectura_id = l.id AND r.usuario = ?) as completada
+    FROM lecturas l
+    WHERE l.estado = 'publicado'
+  `;
+  db.all(query, [usuario], (err, rows) => {
     if (err) return res.status(500).json({ error: 'Error al obtener clases' });
     res.json(rows);
   });

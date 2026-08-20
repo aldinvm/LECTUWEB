@@ -770,11 +770,22 @@ const usuarioActual = sessionStorage.getItem('username') || 'Desconocido';
         }
       });
 
-      // MARCAR LECCIÓN COMO COMPLETADA
-      if (idLeccion) {
-        localStorage.setItem(`leccion_completada_${idLeccion}`, 'true');
-      }
-
+// ENVIAR RESULTADOS AL SERVIDOR Y MARCAR COMO COMPLETADA
+    if (idLeccion) {
+      const usuarioActual = sessionStorage.getItem('username') || 'Desconocido';
+      fetch('/api/resultados', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          usuario: usuarioActual,
+          lectura_id: idLeccion,
+          puntaje: puntajeObtenido,
+          total_preguntas: puntajeTotal
+        })
+      }).then(res => res.json())
+        .then(data => console.log('Resultado guardado en BD:', data))
+        .catch(err => console.error('Error al guardar resultado:', err));
+    }
       // Mostrar banner de resultados en números enteros
       const porcentaje = puntajeTotal > 0 ? Math.round((puntajeObtenido / puntajeTotal) * 100) : 0;
       const banner = document.getElementById('bannerResultado');

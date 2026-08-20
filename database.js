@@ -19,7 +19,8 @@ db.serialize(() => {
   db.run(`CREATE TABLE IF NOT EXISTS lecturas (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     titulo TEXT,
-    contenido TEXT
+    contenido TEXT,
+    estado TEXT DEFAULT 'borrador'
   )`);
 
   db.run(`CREATE TABLE IF NOT EXISTS preguntas (

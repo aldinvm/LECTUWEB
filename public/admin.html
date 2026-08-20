@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel Administrativo</title>
+  <style>
+    :root {
+      --primary: #6C5CE7;
+      --secondary: #00B894;
+      --accent: #FD79A8;
+      --danger: #FF7675;
+      --text-dark: #2D3436;
+    }
+
+    * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+
+    body {
+      margin: 0;
+      background-image: url('fondo.jpg');
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+      min-height: 100vh;
+      position: relative;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(255, 255, 255, 0.25);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .navbar {
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(10px);
+      padding: 16px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+      z-index: 10;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+    }
+
+    .navbar-brand { font-size: 20px; font-weight: 800; color: var(--primary); }
+
+    .btn-salir {
+      background: var(--danger); color: white; border: none; padding: 8px 20px;
+      border-radius: 8px; font-weight: bold; cursor: pointer;
+    }
+
+    .container { width: 95%; max-width: 1500px; margin: 40px auto; padding: 0 20px; position: relative; z-index: 10; }
+
+    .header-dashboard {
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(12px);
+      padding: 25px 30px;
+      border-radius: 16px;
+      margin-bottom: 30px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header-dashboard h1 { margin: 0; color: var(--text-dark); font-size: 26px; }
+
+    .btn-crear {
+      background: var(--primary); color: white; border: none; padding: 12px 24px;
+      border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 16px;
+      transition: background 0.2s;
+    }
+    
+    .btn-crear:hover { background: #5a4bcf; }
+
+    .lecciones-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 25px;
+    }
+
+    .leccion-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(12px);
+      border-radius: 16px;
+      width: 320px;
+      padding: 25px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 180px;
+      border: 1px solid rgba(255, 255, 255, 0.9);
+    }
+
+    .leccion-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 6px;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+    }
+
+    .leccion-titulo { font-size: 19px; font-weight: bold; color: var(--text-dark); margin: 5px 0 15px 0; }
+
+    .acciones-card {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-abrir {
+      flex: 1;
+      background: var(--secondary); color: white; border: none; padding: 10px;
+      border-radius: 10px; font-weight: bold; cursor: pointer; text-align: center;
+    }
+
+    .btn-eliminar {
+      background: #D63031; color: white; border: none; padding: 10px 14px;
+      border-radius: 10px; font-weight: bold; cursor: pointer; text-align: center;
+      transition: background 0.2s;
+    }
+
+    .btn-eliminar:hover { background: #b71c1c; }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="navbar-brand">☕ Panel Administrativo</div>
+    <button class="btn-salir" onclick="cerrarSesion()">Salir 🚪</button>
+  </nav>
+
+  <div class="container">
+    <div class="header-dashboard">
+      <h1>📚 Mis Lecciones</h1>
+      <button class="btn-crear" onclick="crearNuevaLeccion()">+ Crear Nueva Lección</button>
+    </div>
+
+    <div class="lecciones-grid" id="gridLecciones">
+      <p style="color: #2D3436; font-weight: bold; background: rgba(255,255,255,0.8); padding: 10px; border-radius: 8px;">Cargando lecciones...</p>
+    </div>
+  </div>
+
+  <script>
+    async function cargarLecciones() {
+      try {
+        const res = await fetch('/api/clases');
+        const clases = await res.json();
+        const grid = document.getElementById('gridLecciones');
+
+        if (!clases || clases.length === 0) {
+          grid.innerHTML = `<p style="color: #2D3436; font-weight: bold; background: rgba(255,255,255,0.8); padding: 10px; border-radius: 8px;">Aún no hay lecciones creadas.</p>`;
+          return;
+        }
+
+        grid.innerHTML = '';
+        
+        clases.forEach(lec => {
+          grid.innerHTML += `
+            <div class="leccion-card">
+              <h3 class="leccion-titulo">${lec.titulo}</h3>
+              <div class="acciones-card">
+                <button class="btn-abrir" onclick="abrirLeccion(${lec.id})">📝 Editar</button>
+                <button class="btn-eliminar" onclick="eliminarLeccion(${lec.id})">🗑️</button>
+              </div>
+            </div>
+          `;
+        });
+      } catch (e) {
+        console.error(e);
+        document.getElementById('gridLecciones').innerHTML = `<p style="color: #2D3436; font-weight: bold; background: rgba(255,255,255,0.8); padding: 10px; border-radius: 8px;">Error al cargar las lecciones.</p>`;
+      }
+    }
+
+    async function eliminarLeccion(id) {
+      if (!confirm("¿Estás seguro de que deseas eliminar esta lección?")) {
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/clases/' + id, { method: 'DELETE' });
+        if (res.ok) {
+          cargarLecciones();
+        } else {
+          alert("Error al intentar eliminar la lección.");
+        }
+      } catch (e) {
+        alert("Ocurrió un error en el servidor.");
+      }
+    }
+
+    async function crearNuevaLeccion() {
+      try {
+        const res = await fetch('/api/clases/nueva', { method: 'POST' });
+        const data = await res.json();
+        
+        if (data.id) {
+          window.location.href = 'editor.html?id=' + data.id;
+        }
+      } catch (e) {
+        alert("Hubo un error al crear la lección.");
+      }
+    }
+
+    function abrirLeccion(id) {
+      window.location.href = 'editor.html?id=' + id;
+    }
+
+    function cerrarSesion() {
+      window.location.href = 'index.html'; 
+    }
+
+    cargarLecciones();
+  </script>
+</body>
+</html>

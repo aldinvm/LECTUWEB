@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aula de Lectura - Mis Lecciones</title>
+  <style>
+    :root {
+      --primary: #6C5CE7;
+      --secondary: #00B894;
+      --accent: #FD79A8;
+      --text-dark: #2D3436;
+    }
+
+    * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+
+    body {
+      margin: 0;
+      background-image: url('fondo.jpg');
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+      min-height: 100vh;
+      position: relative;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(255, 255, 255, 0.25);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .navbar {
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(10px);
+      padding: 16px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+      z-index: 10;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+    }
+
+    .navbar-brand { font-size: 20px; font-weight: 800; color: var(--primary); }
+
+    .btn-salir, .btn-volver {
+      background: #FF7675; color: white; border: none; padding: 8px 20px;
+      border-radius: 8px; font-weight: bold; cursor: pointer; text-decoration: none;
+    }
+    .btn-volver { background: #636E72; }
+
+    .container { width: 95%; max-width: 1500px; margin: 40px auto; padding: 0 20px; position: relative; z-index: 10; }
+
+    .header-dashboard {
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(12px);
+      padding: 25px 30px;
+      border-radius: 16px;
+      margin-bottom: 30px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    }
+
+    .header-dashboard h1 { margin: 0; color: var(--text-dark); font-size: 26px; }
+
+    .lecciones-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 25px;
+    }
+
+    .leccion-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(12px);
+      border-radius: 16px;
+      width: 320px;
+      padding: 25px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 190px;
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      transition: transform 0.2s;
+    }
+
+    .leccion-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 6px;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+    }
+
+    .leccion-card:hover { transform: translateY(-5px); }
+
+    .badge-completada {
+      display: inline-block;
+      background: #D1FAE5;
+      color: #065F46;
+      font-size: 12px;
+      font-weight: bold;
+      padding: 4px 10px;
+      border-radius: 20px;
+      margin-bottom: 8px;
+      width: fit-content;
+    }
+
+    .leccion-titulo { font-size: 19px; font-weight: bold; color: var(--text-dark); margin: 5px 0 15px 0; }
+
+    .btn-abrir {
+      background: var(--secondary); color: white; border: none; padding: 12px;
+      border-radius: 10px; font-weight: bold; cursor: pointer; text-align: center; text-decoration: none;
+      transition: background 0.2s ease;
+    }
+
+    .lesson-paper {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(12px);
+      border-radius: 16px;
+      padding: 40px;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.08);
+    }
+
+    .lesson-title { font-size: 28px; margin-bottom: 20px; border-bottom: 3px solid var(--primary); padding-bottom: 10px; }
+    .lesson-content img { max-width: 100%; border-radius: 8px; margin: 20px 0; }
+
+    .clearfix::after {
+      content: "";
+      clear: both;
+      display: table;
+    }
+
+    /* --- ESTILOS DE ACTIVIDADES DE EVALUACIÓN --- */
+
+    .pregunta-card {
+      background: #F8FAFC;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-left: 5px solid var(--primary);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+      transition: border-color 0.3s ease;
+    }
+
+    .pregunta-card.resultado-correcto { border-left-color: #10B981 !important; }
+    .pregunta-card.resultado-incorrecto { border-left-color: #EF4444 !important; }
+
+    /* Opción Múltiple */
+    .prev-opt-btn {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      padding: 14px 18px;
+      margin-bottom: 10px;
+      background: #ffffff;
+      border: 2px solid #E2E8F0;
+      border-radius: 10px;
+      font-size: 15px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+    }
+    .prev-opt-btn:hover {
+      background: #F8FAFC;
+      border-color: #CBD5E1;
+    }
+    .prev-opt-btn.user-selected {
+      border-color: var(--primary);
+      background-color: #F0F4FF;
+      font-weight: 600;
+    }
+    .prev-opt-btn.correct {
+      background-color: #D1FAE5 !important;
+      border-color: #10B981 !important;
+      color: #065F46 !important;
+      font-weight: bold;
+    }
+    .prev-opt-btn.incorrect {
+      background-color: #FEE2E2 !important;
+      border-color: #EF4444 !important;
+      color: #991B1B !important;
+    }
+
+    /* Verdadero / Falso */
+    .vf-interactive-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #ffffff;
+      padding: 14px 18px;
+      border-radius: 10px;
+      margin-bottom: 12px;
+      border: 1px solid #E2E8F0;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+    }
+    .btn-vf-prev {
+      width: 42px;
+      height: 40px;
+      border-radius: 8px;
+      border: 2px solid #CBD5E1;
+      background: #ffffff;
+      font-weight: bold;
+      font-size: 15px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-vf-prev:hover { background: #F1F5F9; }
+    .btn-vf-prev.user-selected {
+      border-color: var(--primary);
+      background-color: var(--primary);
+      color: white;
+    }
+    .btn-vf-prev.correct {
+      background: #10B981 !important;
+      color: white !important;
+      border-color: #10B981 !important;
+    }
+    .btn-vf-prev.incorrect {
+      background: #EF4444 !important;
+      color: white !important;
+      border-color: #EF4444 !important;
+    }
+
+    /* --- UNIR PALABRAS (ESTILO VISUALIZADOR CON LAZO) --- */
+    .unir-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 15px;
+    }
+
+    .card-ribbon {
+      position: relative;
+      background-color: #ffffff;
+      color: #2D3436;
+      font-weight: 500;
+      padding: 14px 18px 14px 42px;
+      border-radius: 10px;
+      border: 1px solid #E2E8F0;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 15px;
+      user-select: none;
+      transition: all 0.2s ease;
+      overflow: hidden;
+    }
+
+    .card-ribbon::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 22px;
+      background-color: var(--ribbon-color, #CBD5E1);
+      clip-path: polygon(0 0, 100% 0, 60% 50%, 100% 100%, 0 100%);
+      transition: background-color 0.2s ease;
+    }
+
+    .card-ribbon.item-concepto {
+      font-weight: 600;
+    }
+
+    .card-ribbon.item-respuesta {
+      --ribbon-color: #CBD5E1;
+    }
+
+    .card-ribbon:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+    }
+
+    .card-ribbon.selected {
+      outline: 3px solid #3B82F6;
+      outline-offset: 2px;
+    }
+
+    .card-ribbon.paired {
+      background-color: var(--ribbon-color) !important;
+      color: #ffffff !important;
+      font-weight: 600;
+      border-color: transparent;
+    }
+
+    .card-ribbon.paired::before {
+      display: none;
+    }
+
+    .status-icon {
+      font-size: 16px;
+      font-weight: bold;
+      margin-left: 10px;
+    }
+
+    /* BOTÓN Y BANNER DE EVALUACIÓN */
+    .btn-enviar-examen {
+      display: block;
+      width: 100%;
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 18px;
+      border-radius: 12px;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 30px;
+      box-shadow: 0 6px 20px rgba(108, 92, 231, 0.3);
+      transition: all 0.2s ease;
+    }
+    .btn-enviar-examen:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(108, 92, 231, 0.4); }
+
+    .score-banner {
+      background: white;
+      border-radius: 14px;
+      padding: 25px;
+      margin-top: 30px;
+      text-align: center;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+      border: 3px solid var(--primary);
+      display: none;
+    }
+    .score-title { font-size: 22px; font-weight: 800; color: var(--text-dark); margin-bottom: 8px; }
+    .score-number { font-size: 42px; font-weight: 900; color: var(--primary); margin: 10px 0; }
+    .score-msg { font-size: 16px; font-weight: 600; color: #636E72; margin-bottom: 20px; }
+
+    .btn-menu-principal {
+      display: inline-block;
+      background: var(--primary);
+      color: white;
+      text-decoration: none;
+      padding: 12px 25px;
+      border-radius: 10px;
+      font-weight: bold;
+      font-size: 16px;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+    .btn-menu-principal:hover {
+      opacity: 0.9;
+      transform: translateY(-2px);
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="navbar-brand" id="navBrand">📖 Aula de Lectura</div>
+    <div id="navButton"></div>
+  </nav>
+
+  <div class="container" id="appContainer"></div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const idLeccion = urlParams.get('id');
+    const container = document.getElementById('appContainer');
+    const navButton = document.getElementById('navButton');
+
+    const ribbonPalette = ['#EF4444', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#06B6D4', '#F97316', '#EC4899'];
+    let conceptoSeleccionado = null;
+    let preguntasGlobales = [];
+
+    async function iniciar() {
+      if (idLeccion) {
+        navButton.innerHTML = `<button class="btn-volver" onclick="window.location.href='estudiante.html'">← Volver a la lista</button>`;
+        
+        container.innerHTML = `
+          <div class="lesson-paper">
+            <h1 class="lesson-title" id="tituloLeccion" style="color: #6C5CE7; font-size: 28px; font-weight: 800; border-bottom: 2px solid #6C5CE7; padding-bottom: 12px; margin-bottom: 25px;">Cargando...</h1>
+            <div id="contenidoLeccion"></div>
+            <div id="seccionPreguntas" style="margin-top: 40px;"></div>
+            <div id="bannerResultado" class="score-banner"></div>
+          </div>
+        `;
+
+        try {
+          const res = await fetch(`/api/clases/${idLeccion}`);
+          const respuestaServer = await res.json();
+          
+          const leccion = respuestaServer.lectura;
+          preguntasGlobales = respuestaServer.preguntas || [];
+          
+          if (leccion) {
+            document.getElementById('tituloLeccion').innerText = leccion.titulo || 'Sin título';
+            if (leccion.color) {
+              document.documentElement.style.setProperty('--primary', leccion.color);
+            }
+            
+            // RENDERIZAR BLOQUES
+            let htmlContenido = '';
+            try {
+              const bloques = JSON.parse(leccion.contenido);
+              bloques.forEach(b => {
+                const textoFormateado = (b.texto || '').replace(/\n/g, '<br>');
+
+                if (b.tipo === 'mixto') {
+                  let pxWidth = '300px';
+                  if (b.tamano === 'pequena') pxWidth = '200px';
+                  if (b.tamano === 'grande') pxWidth = '420px';
+                  if (b.tamano === 'full' || b.posicion === 'arriba') pxWidth = '100%';
+
+                  let floatStyle = '';
+                  if (b.posicion === 'derecha') {
+                    floatStyle = `float: right; margin-left: 20px; margin-bottom: 15px; width: ${pxWidth};`;
+                  } else if (b.posicion === 'izquierda') {
+                    floatStyle = `float: left; margin-right: 20px; margin-bottom: 15px; width: ${pxWidth};`;
+                  } else {
+                    floatStyle = `display: block; margin: 0 auto 15px auto; width: ${pxWidth};`;
+                  }
+
+                  htmlContenido += `
+                    <div style="margin-bottom: 25px; width: 100%;" class="clearfix">
+                      ${b.imagen ? `<img src="${b.imagen}" style="max-height:450px; object-fit:cover; border-radius:10px; box-shadow:0 3px 8px rgba(0,0,0,0.1); ${floatStyle}">` : ''}
+                      <div style="font-size:16px; line-height:1.7; color:#2D3436; text-align:justify;">${textoFormateado}</div>
+                      <div style="clear:both;"></div>
+                    </div>
+                  `;
+                } else {
+                  htmlContenido += `<div style="font-size:16px; line-height:1.7; color:#2D3436; margin-bottom:20px; text-align:justify;">${textoFormateado}</div>`;
+                }
+              });
+            } catch(e) {
+              htmlContenido = `<div style="font-size:16px; line-height:1.7; color:#2D3436;">${(leccion.contenido || '').replace(/\n/g, '<br>')}</div>`;
+            }
+            
+            document.getElementById('contenidoLeccion').innerHTML = htmlContenido;
+
+            // RENDERIZAR PREGUNTAS
+            const divPreguntas = document.getElementById('seccionPreguntas');
+            if (preguntasGlobales && preguntasGlobales.length > 0) {
+              let htmlPreguntas = `<h2 style="color:var(--primary); margin-top:40px; border-top:2px dashed #CBD5E1; padding-top:20px;">📝 Actividades de Evaluación</h2>`;
+              
+              preguntasGlobales.forEach((p, idx) => {
+                let datosParseados = p.datos;
+                try { datosParseados = JSON.parse(p.datos); } catch(e){}
+
+                let pts = p.puntos || 1;
+                if (p.tipo === 'verdadero_falso') {
+                  pts = Array.isArray(datosParseados) ? datosParseados.length : 1;
+                } else if (p.tipo === 'unir') {
+                  const parejas = typeof datosParseados === 'string' ? datosParseados.split(', ') : [];
+                  pts = parejas.length || 1;
+                }
+
+                htmlPreguntas += `<div class="pregunta-card" id="q_card_${idx}" data-idx="${idx}" data-tipo="${p.tipo}">`;
+                htmlPreguntas += `<p style="font-weight:bold; font-size:17px; margin-top:0;">${idx + 1}. ${p.enunciado} <span style="color:var(--primary); font-size:14px;">(${pts} ${pts === 1 ? 'pt' : 'pts'})</span></p>`;
+
+                if (p.tipo === 'multiple') {
+                  const opciones = Array.isArray(datosParseados) ? datosParseados : [];
+                  opciones.forEach(optText => {
+                    htmlPreguntas += `
+                      <button class="prev-opt-btn" onclick="seleccionarOpcionMultiple(this)">
+                        <span class="opt-text">${optText}</span>
+                        <span class="opt-feedback"></span>
+                      </button>
+                    `;
+                  });
+
+                } else if (p.tipo === 'verdadero_falso') {
+                  const items = Array.isArray(datosParseados) ? datosParseados : [];
+                  items.forEach((item, itemIdx) => {
+                    htmlPreguntas += `
+                      <div class="vf-interactive-row" data-respuesta-correcta="${item.respuesta}">
+                        <span style="font-size:15px; font-weight:500;">${item.texto}</span>
+                        <div style="display:flex; gap:8px;">
+                          <button class="btn-vf-prev" onclick="seleccionarVF(this, 'V')">V</button>
+                          <button class="btn-vf-prev" onclick="seleccionarVF(this, 'F')">F</button>
+                        </div>
+                      </div>
+                    `;
+                  });
+
+                } else if (p.tipo === 'unir') {
+                  const conceptos = [];
+                  const respuestas = [];
+                  const parejas = typeof datosParseados === 'string' ? datosParseados.split(', ') : [];
+
+                  parejas.forEach((pair, rIdx) => {
+                    const [pal, def] = pair.split(' = ');
+                    const color = ribbonPalette[rIdx % ribbonPalette.length];
+                    conceptos.push({ id: rIdx, texto: pal, color, parejaDef: def });
+                    respuestas.push({ id: rIdx, texto: def, parejaPal: pal });
+                  });
+
+                  respuestas.sort(() => Math.random() - 0.5);
+
+                  htmlPreguntas += `<div class="unir-container" id="unir_q_${idx}">`;
+                  htmlPreguntas += `<div class="unir-col-left" style="display:flex; flex-direction:column; gap:10px;">`;
+                  conceptos.forEach(c => {
+                    htmlPreguntas += `
+                      <div class="card-ribbon item-concepto" 
+                           style="--ribbon-color: ${c.color};" 
+                           data-id="${c.id}" 
+                           data-pareja="${(c.parejaDef || '').replace(/"/g, '&quot;')}" 
+                           data-color="${c.color}"
+                           onclick="seleccionarConceptoUnir(this)">
+                        <span>${c.texto}</span>
+                        <span class="status-icon"></span>
+                      </div>
+                    `;
+                  });
+                  htmlPreguntas += `</div>`;
+
+                  htmlPreguntas += `<div class="unir-col-right" style="display:flex; flex-direction:column; gap:10px;">`;
+                  respuestas.forEach((r, rIdx) => {
+                    htmlPreguntas += `
+                      <div class="card-ribbon item-respuesta" 
+                           data-id="${rIdx}"
+                           data-texto="${(r.texto || '').replace(/"/g, '&quot;')}" 
+                           onclick="seleccionarRespuestaUnir(this)">
+                        <span>${r.texto}</span>
+                        <span class="status-icon"></span>
+                      </div>
+                    `;
+                  });
+                  htmlPreguntas += `</div>`;
+                  htmlPreguntas += `</div>`;
+                }
+
+                htmlPreguntas += `</div>`;
+              });
+
+              htmlPreguntas += `<button class="btn-enviar-examen" onclick="evaluarYEnviarExamen()">Enviar Examen 🚀</button>`;
+              divPreguntas.innerHTML = htmlPreguntas;
+            }
+          }
+        } catch (e) {
+          document.getElementById('tituloLeccion').innerText = "Error";
+          document.getElementById('contenidoLeccion').innerHTML = "<p>No se pudo cargar la lección.</p>";
+        }
+
+      } else {
+        navButton.innerHTML = `<button class="btn-salir" onclick="window.location.href='index.html'">Salir 🚪</button>`;
+        container.innerHTML = `
+          <div class="header-dashboard">
+            <h1>📚 Lecciones Disponibles para Ti</h1>
+          </div>
+          <div class="lecciones-grid" id="gridLecciones">
+            <p style="color: #2D3436; font-weight: bold; background: rgba(255,255,255,0.8); padding: 10px; border-radius: 8px;">Cargando lecciones...</p>
+          </div>
+        `;
+
+        try {
+          const res = await fetch('/api/clases');
+          const lecciones = await res.json();
+          const grid = document.getElementById('gridLecciones');
+
+          if (!lecciones || lecciones.length === 0) {
+            grid.innerHTML = `<p style="color: #2D3436; font-weight: bold; background: rgba(255,255,255,0.8); padding: 10px; border-radius: 8px;">Aún no hay lecciones publicadas.</p>`;
+            return;
+          }
+
+          grid.innerHTML = '';
+          lecciones.forEach(lec => {
+            const esCompletada = localStorage.getItem(`leccion_completada_${lec.id}`) === 'true';
+            grid.innerHTML += `
+              <div class="leccion-card">
+                <div>
+                  ${esCompletada ? '<span class="badge-completada">Completa ✅</span>' : ''}
+                  <h3 class="leccion-titulo">${lec.titulo}</h3>
+                </div>
+                <a href="estudiante.html?id=${lec.id}" class="btn-abrir" style="${esCompletada ? 'background: #0984E3;' : ''}">
+                  ${esCompletada ? 'Repasar Lección 🔄' : '📖 Leer Lección'}
+                </a>
+              </div>
+            `;
+          });
+        } catch (e) {
+          document.getElementById('gridLecciones').innerHTML = `<p style="color: #2D3436; font-weight: bold; background: rgba(255,255,255,0.8); padding: 10px; border-radius: 8px;">Error al cargar las lecciones.</p>`;
+        }
+      }
+    }
+
+    /* SELECCIÓN PREVIA A EVALUACIÓN */
+    function seleccionarOpcionMultiple(btn) {
+      const parent = btn.parentElement;
+      parent.querySelectorAll('.prev-opt-btn').forEach(b => b.classList.remove('user-selected'));
+      btn.classList.add('user-selected');
+    }
+
+    function seleccionarVF(btn, val) {
+      const row = btn.parentElement;
+      row.querySelectorAll('.btn-vf-prev').forEach(b => b.classList.remove('user-selected'));
+      btn.classList.add('user-selected');
+      btn.dataset.val = val;
+    }
+
+    function desvincularParejaPorMatchId(container, matchId) {
+      const elementos = container.querySelectorAll(`[data-match-id="${matchId}"]`);
+      elementos.forEach(el => {
+        el.classList.remove('paired', 'selected');
+        delete el.dataset.matchId;
+        el.querySelector('.status-icon').innerHTML = '';
+        if (el.classList.contains('item-respuesta')) {
+          el.style.removeProperty('--ribbon-color');
+        }
+      });
+    }
+
+    function seleccionarConceptoUnir(el) {
+      const contenedor = el.closest('.unir-container');
+      if (el.classList.contains('paired')) {
+        desvincularParejaPorMatchId(contenedor, el.dataset.matchId);
+      }
+      contenedor.querySelectorAll('.item-concepto').forEach(c => c.classList.remove('selected'));
+      el.classList.add('selected');
+      conceptoSeleccionado = el;
+    }
+
+    function seleccionarRespuestaUnir(elRes) {
+      const contenedor = elRes.closest('.unir-container');
+      if (elRes.classList.contains('paired')) {
+        desvincularParejaPorMatchId(contenedor, elRes.dataset.matchId);
+      }
+      if (!conceptoSeleccionado) return;
+
+      const color = conceptoSeleccionado.dataset.color;
+      const matchId = 'match_' + Date.now();
+      
+      conceptoSeleccionado.dataset.matchId = matchId;
+      elRes.dataset.matchId = matchId;
+      elRes.style.setProperty('--ribbon-color', color);
+
+      conceptoSeleccionado.classList.remove('selected');
+      conceptoSeleccionado.classList.add('paired');
+      elRes.classList.add('paired');
+
+      conceptoSeleccionado = null;
+    }
+
+    /* EVALUACIÓN COMPLETA Y CÁLCULO DE NOTA */
+    function evaluarYEnviarExamen() {
+      // 1. Validar que todas las preguntas e ítems estén respondidos
+      let faltantes = 0;
+
+      preguntasGlobales.forEach((p, idx) => {
+        const card = document.getElementById(`q_card_${idx}`);
+        
+        if (p.tipo === 'multiple') {
+          const sel = card.querySelector('.prev-opt-btn.user-selected');
+          if (!sel) faltantes++;
+        } else if (p.tipo === 'verdadero_falso') {
+          const filas = card.querySelectorAll('.vf-interactive-row');
+          filas.forEach(row => {
+            if (!row.querySelector('.btn-vf-prev.user-selected')) faltantes++;
+          });
+        } else if (p.tipo === 'unir') {
+          const conceptos = card.querySelectorAll('.item-concepto');
+          conceptos.forEach(c => {
+            if (!c.dataset.matchId) faltantes++;
+          });
+        }
+      });
+
+      if (faltantes > 0) {
+        alert(`⚠️ Tienes ${faltantes} respuesta(s) sin responder. Responde todas las preguntas antes de enviar el examen.`);
+        return;
+      }
+
+      // 2. Procesar la calificación si todo está respondido
+      let puntajeObtenido = 0;
+      let puntajeTotal = 0;
+
+      preguntasGlobales.forEach((p, idx) => {
+        const card = document.getElementById(`q_card_${idx}`);
+        let puntosGanadosQ = 0;
+        let maxPtsQ = 0;
+
+        // Opción Múltiple
+        if (p.tipo === 'multiple') {
+          maxPtsQ = p.puntos || 1;
+          const btnSeleccionado = card.querySelector('.prev-opt-btn.user-selected');
+          const respuestaCorrecta = p.respuesta_correcta || '';
+
+          card.querySelectorAll('.prev-opt-btn').forEach(btn => {
+            const optTxt = btn.querySelector('.opt-text').innerText.trim();
+            const feedback = btn.querySelector('.opt-feedback');
+
+            if (optTxt === respuestaCorrecta) {
+              btn.classList.add('correct');
+              feedback.innerHTML = '✔️ Correcta';
+            }
+            if (btn.classList.contains('user-selected') && optTxt !== respuestaCorrecta) {
+              btn.classList.add('incorrect');
+              feedback.innerHTML = '❌ Tu elección';
+            }
+          });
+
+          if (btnSeleccionado) {
+            const txtElegido = btnSeleccionado.querySelector('.opt-text').innerText.trim();
+            if (txtElegido === respuestaCorrecta) {
+              puntosGanadosQ = maxPtsQ;
+            }
+          }
+
+        // Verdadero / Falso (1 punto por cada afirmación)
+        } else if (p.tipo === 'verdadero_falso') {
+          const filas = card.querySelectorAll('.vf-interactive-row');
+          maxPtsQ = filas.length;
+
+          filas.forEach(row => {
+            const respCorrecta = row.dataset.respuestaCorrecta;
+            const btnSel = row.querySelector('.btn-vf-prev.user-selected');
+
+            row.querySelectorAll('.btn-vf-prev').forEach(b => {
+              if (b.innerText === respCorrecta) {
+                b.classList.add('correct');
+              }
+            });
+
+            if (btnSel) {
+              const valSel = btnSel.innerText.trim();
+              if (valSel === respCorrecta) {
+                puntosGanadosQ += 1;
+              } else {
+                btnSel.classList.add('incorrect');
+              }
+            }
+          });
+
+        // Unir Palabras (1 punto por cada pareja correcta)
+        } else if (p.tipo === 'unir') {
+          const conceptos = card.querySelectorAll('.item-concepto');
+          maxPtsQ = conceptos.length;
+
+          conceptos.forEach(c => {
+            const matchId = c.dataset.matchId;
+            const parejaCorrecta = c.dataset.pareja;
+            const statusIcon = c.querySelector('.status-icon');
+
+            if (matchId) {
+              const respCorrespondiente = card.querySelector(`.item-respuesta[data-match-id="${matchId}"]`);
+              if (respCorrespondiente) {
+                const txtResp = respCorrespondiente.dataset.texto;
+                const statusResp = respCorrespondiente.querySelector('.status-icon');
+
+                if (txtResp === parejaCorrecta) {
+                  puntosGanadosQ += 1;
+                  statusIcon.innerHTML = '✔️';
+                  statusResp.innerHTML = '✔️';
+                } else {
+                  statusIcon.innerHTML = '❌';
+                  statusResp.innerHTML = '❌';
+                }
+              }
+            } else {
+              statusIcon.innerHTML = '⚠️ Sin responder';
+            }
+          });
+        }
+
+        puntajeTotal += maxPtsQ;
+        puntajeObtenido += puntosGanadosQ;
+
+        // Marcar la tarjeta visualmente
+        if (puntosGanadosQ === maxPtsQ && maxPtsQ > 0) {
+          card.classList.add('resultado-correcto');
+        } else {
+          card.classList.add('resultado-incorrecto');
+        }
+      });
+
+      // MARCAR LECCIÓN COMO COMPLETADA
+      if (idLeccion) {
+        localStorage.setItem(`leccion_completada_${idLeccion}`, 'true');
+      }
+
+      // Mostrar banner de resultados en números enteros
+      const porcentaje = puntajeTotal > 0 ? Math.round((puntajeObtenido / puntajeTotal) * 100) : 0;
+      const banner = document.getElementById('bannerResultado');
+      
+      let mensaje = "¡Buen esfuerzo! Revisa tus respuestas para seguir aprendiendo. 📖";
+      if (porcentaje >= 90) mensaje = "¡Excelente trabajo! Has demostrado un gran dominio de la lección. 🎉";
+      else if (porcentaje >= 70) mensaje = "¡Muy bien! Has completado la lección con éxito. 👍";
+
+      banner.innerHTML = `
+        <div class="score-title">Resultado de tu Evaluación</div>
+        <div class="score-number">${puntajeObtenido} / ${puntajeTotal} <span style="font-size:22px; color:#636E72;">(${porcentaje}%)</span></div>
+        <div class="score-msg">${mensaje}</div>
+        <a href="estudiante.html" class="btn-menu-principal">🏠 Regresar al Menú Principal</a>
+      `;
+      banner.style.display = 'block';
+      banner.scrollIntoView({ behavior: 'smooth' });
+
+      // Desactivar el botón de envío
+      const btnEnviar = document.querySelector('.btn-enviar-examen');
+      if (btnEnviar) {
+        btnEnviar.disabled = true;
+        btnEnviar.style.opacity = '0.6';
+        btnEnviar.style.cursor = 'not-allowed';
+        btnEnviar.innerText = 'Examen Evaluado ✅';
+      }
+    }
+
+    iniciar();
+  </script>
+</body>
+</html>

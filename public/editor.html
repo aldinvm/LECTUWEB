@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Editor de Lección 🛠️</title>
+  <style>
+    :root {
+      --primary: #6C5CE7;
+      --bg-body: #F0F4F8;
+    }
+
+    * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background: var(--bg-body); margin: 0; padding: 20px 10px; display: flex; justify-content: center; }
+    
+    .editor-container { max-width: 1280px; width: 95%; margin: 0 auto; }
+
+    /* Tarjeta Principal */
+    .header-card { background: white; border-radius: 14px; padding: 25px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-top: 10px solid var(--primary); transition: border-color 0.3s; }
+    .input-titulo { width: 100%; font-size: 28px; font-weight: bold; border: none; border-bottom: 2px dashed #E2E8F0; padding: 6px 0; outline: none; color: #2D3436; margin-bottom: 15px; }
+    .input-titulo:focus { border-bottom-color: var(--primary); }
+
+    /* Selector de Color */
+    .color-picker-container { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+    .color-picker-label { font-size: 13px; font-weight: bold; color: #636E72; }
+    .color-dots { display: flex; gap: 8px; }
+    .color-dot { width: 26px; height: 26px; border-radius: 50%; cursor: pointer; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: transform 0.2s; }
+    .color-dot:hover { transform: scale(1.15); }
+    .color-dot.active { transform: scale(1.25); border-color: #2D3436; }
+
+    /* LAYOUT PRINCIPAL CON PANEL LATERAL ESTRATÉGICO */
+    .editor-layout {
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .main-canvas {
+      width: 100%;
+    }
+
+    /* PANEL LATERAL FLOTANTE / STICKY */
+    .sidebar-actions {
+      position: sticky;
+      top: 20px;
+      background: white;
+      padding: 20px;
+      border-radius: 14px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.06);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      border-top: 4px solid var(--primary);
+    }
+
+    .sidebar-title {
+      font-size: 14px;
+      font-weight: bold;
+      color: #636E72;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .btn-add {
+      background: white;
+      border: 2px dashed var(--primary);
+      color: var(--primary);
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 14px;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-add:hover { background: #F8F9FA; transform: translateX(3px); }
+
+    .btn-save {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 14px;
+      border-radius: 10px;
+      font-weight: bold;
+      font-size: 15px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      transition: transform 0.2s;
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn-save:hover { transform: translateY(-2px); }
+
+    /* Tarjetas de Bloques */
+    .block { background: white; border-radius: 14px; padding: 22px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); border-left: 6px solid var(--primary); position: relative; transition: all 0.3s ease; }
+    .block:focus-within { box-shadow: 0 6px 20px rgba(108, 92, 231, 0.12); }
+    
+    .block-toolbar { display: flex; justify-content: space-between; align-items: center; background: #F8FAFC; padding: 10px 14px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #E2E8F0; flex-wrap: wrap; gap: 10px; }
+    .block-tag { font-size: 13px; font-weight: bold; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* Estilos del Bloque de Pregunta Rediseñado */
+    .pregunta-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .pregunta-actions-top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-add-option {
+      background: #F1F5F9;
+      border: 1px solid #CBD5E1;
+      color: #334155;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .btn-add-option:hover {
+      background: #E2E8F0;
+      border-color: #94A3B8;
+    }
+
+    .txt-contenido {
+      width: 100%;
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 16px;
+      line-height: 1.6;
+      color: #2D3436;
+      resize: none;
+      overflow-y: hidden;
+      min-height: 120px;
+      outline: none;
+      background: #FAFAFA;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .txt-contenido:focus { border-color: var(--primary); background: #FFFFFF; }
+
+    /* Layout Flotante en Editor */
+    .mixto-editor-wrap { width: 100%; overflow: hidden; margin-top: 10px; }
+    
+    .img-container-editor { transition: all 0.2s ease; }
+    .img-container-editor.pos-derecha { float: right; margin-left: 20px; margin-bottom: 15px; }
+    .img-container-editor.pos-izquierda { float: left; margin-right: 20px; margin-bottom: 15px; }
+    .img-container-editor.pos-arriba { float: none; display: block; margin: 0 auto 15px auto; }
+
+    .img-container-editor.size-pequena { width: 200px; }
+    .img-container-editor.size-mediana { width: 300px; }
+    .img-container-editor.size-grande { width: 420px; }
+    .img-container-editor.size-full { width: 100%; }
+
+    .img-preview-render {
+      width: 100%;
+      max-height: 420px;
+      object-fit: cover;
+      border-radius: 10px;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.08);
+      display: block;
+    }
+
+    .img-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background: #F1F5F9;
+      padding: 8px;
+      border-radius: 8px;
+      font-size: 12px;
+      margin-top: 6px;
+    }
+
+    .input-field { width: 100%; padding: 8px 10px; border: 1px solid #CBD5E1; border-radius: 6px; outline: none; font-size: 14px; }
+    .input-field:focus { border-color: var(--primary); }
+
+    .btn-del { background: none; border: none; cursor: pointer; font-size: 16px; color: #EF4444; opacity: 0.7; padding: 4px; border-radius: 4px; }
+    .btn-del:hover { opacity: 1; background: #FEE2E2; }
+
+    /* Preguntas */
+    .opcion-row, .unir-row, .vf-row { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+    .btn-vf { width: 42px; height: 42px; border: 2px solid #CBD5E1; background: white; border-radius: 8px; font-weight: bold; font-size: 15px; cursor: pointer; color: #475569; }
+    .btn-vf-v.active { background: #10B981; color: white; border-color: #10B981; }
+    .btn-vf-f.active { background: #EF4444; color: white; border-color: #EF4444; }
+
+    /* Modal de Vista Previa */
+    .modal-bg { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
+    .modal-content { background: white; border-radius: 16px; width: 95%; max-width: 900px; max-height: 90vh; overflow-y: auto; padding: 35px; position: relative; }
+
+    .btn-floating-close {
+      position: fixed;
+      top: 25px;
+      right: 35px;
+      background: #EF4444;
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 30px;
+      font-weight: bold;
+      font-size: 14px;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+      z-index: 1010;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: transform 0.2s, background 0.2s;
+    }
+    .btn-floating-close:hover { background: #DC2626; transform: scale(1.05); }
+    
+    .clearfix::after { content: ""; clear: both; display: table; }
+
+    /* Unir Parejas Interactivo */
+    .unir-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px; }
+    
+    .card-ribbon {
+      position: relative;
+      background: #FFFFFF;
+      border: 2px solid #E2E8F0;
+      border-radius: 10px;
+      padding: 14px 16px 14px 38px;
+      font-weight: 600;
+      font-size: 15px;
+      color: #2D3436;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 52px;
+    }
+
+    .card-ribbon::before {
+      content: '';
+      position: absolute;
+      left: -2px;
+      top: 8px;
+      bottom: 8px;
+      width: 22px;
+      background-color: var(--ribbon-color, #94A3B8);
+      clip-path: polygon(0 0, 100% 0, 75% 50%, 100% 100%, 0 100%);
+      border-top-left-radius: 4px;
+      border-bottom-left-radius: 4px;
+      transition: all 0.25s ease;
+    }
+
+    .card-ribbon:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.06); }
+    .card-ribbon.selected { border-color: var(--ribbon-color); transform: scale(1.02); box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.2); }
+
+    .card-ribbon.paired {
+      background-color: var(--ribbon-color) !important;
+      color: white !important;
+      border-color: var(--ribbon-color) !important;
+    }
+    .card-ribbon.paired::before { display: none; }
+
+    .prev-opt-btn { display: block; width: 100%; text-align: left; background: white; padding: 12px 16px; border-radius: 8px; border: 2px solid #E2E8F0; margin: 8px 0; cursor: pointer; font-size: 15px; font-weight: 500; transition: all 0.2s; }
+    .prev-opt-btn:hover { border-color: var(--primary); background: #F8FAFC; }
+    .prev-opt-btn.correct { background: #10B981 !important; color: white !important; border-color: #10B981 !important; font-weight: bold; }
+    .prev-opt-btn.incorrect { background: #EF4444 !important; color: white !important; border-color: #EF4444 !important; }
+
+    .vf-interactive-row { display: flex; justify-content: space-between; align-items: center; background: white; padding: 10px 14px; border-radius: 8px; margin: 8px 0; border: 1px solid #E2E8F0; }
+    .btn-vf-prev { padding: 8px 18px; border-radius: 6px; border: 2px solid #CBD5E1; background: white; font-weight: bold; cursor: pointer; transition: all 0.2s; }
+    .btn-vf-prev.correct { background: #10B981 !important; color: white !important; border-color: #10B981 !important; }
+    .btn-vf-prev.incorrect { background: #EF4444 !important; color: white !important; border-color: #EF4444 !important; }
+
+    /* Responsivo para móviles */
+    @media (max-width: 900px) {
+      .editor-layout {
+        grid-template-columns: 1fr;
+      }
+      .sidebar-actions {
+        position: static;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="editor-container">
+    <div class="header-card">
+      <input type="text" id="tituloLeccion" class="input-titulo" placeholder="Título de la Lección...">
+      
+      <div class="color-picker-container">
+        <span class="color-picker-label">🎨 Tema de Color:</span>
+        <div class="color-dots">
+          <div class="color-dot active" style="background: #6C5CE7;" onclick="setThemeColor('#6C5CE7', this)"></div>
+          <div class="color-dot" style="background: #0984E3;" onclick="setThemeColor('#0984E3', this)"></div>
+          <div class="color-dot" style="background: #00B894;" onclick="setThemeColor('#00B894', this)"></div>
+          <div class="color-dot" style="background: #E17055;" onclick="setThemeColor('#E17055', this)"></div>
+          <div class="color-dot" style="background: #FD79A8;" onclick="setThemeColor('#FD79A8', this)"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ESTRUCTURA PRINCIPAL DE DOS COLUMNAS -->
+    <div class="editor-layout">
+      <!-- Columna Izquierda: Lienzo donde se agregan los bloques -->
+      <div class="main-canvas" id="canvas"></div>
+
+      <!-- Columna Derecha: Panel de Control Fijo (Sticky) -->
+      <aside class="sidebar-actions">
+        <div class="sidebar-title">Añadir Contenido</div>
+        <button class="btn-add" onclick="agregarBloqueTexto()">📖 + Texto</button>
+        <button class="btn-add" onclick="agregarBloqueMixto()">🖼️ + Texto con Imagen</button>
+        <button class="btn-add" onclick="agregarBloquePregunta()">❓ + Pregunta</button>
+
+        <hr style="border: 0; border-top: 1px solid #E2E8F0; margin: 10px 0; width: 100%;">
+
+        <div class="sidebar-title">Acciones</div>
+        <button class="btn-add" onclick="window.location.href='/admin.html'" style="border-color: #636E72; color: #636E72;">⬅️ Volver al Panel</button>
+        <button class="btn-add" onclick="abrirVistaPrevia()" style="border-color: #0984E3; color: #0984E3;">👁️ Vista Previa</button>
+        <button class="btn-save" onclick="guardarLeccion()">Guardar Lección 🚀</button>
+      </aside>
+    </div>
+  </div>
+
+  <!-- MODAL DE VISTA PREVIA INTERACTIVO -->
+  <div id="modalPreview" class="modal-bg">
+    <button class="btn-floating-close" onclick="cerrarVistaPrevia()">✕ Salir</button>
+    
+    <div class="modal-content">
+      <div id="previewBody"></div>
+    </div>
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const claseId = urlParams.get('id');
+    let contadorPreguntas = 0;
+    let currentColor = '#6C5CE7';
+
+    /* SISTEMA DE PUNTOS EN VISTA PREVIA */
+    let puntajeTotalMaximo = 0;
+    let registroPuntajesObtenidos = {};
+
+    function actualizarPuntajeUI() {
+      let acumulado = 0;
+      for (let key in registroPuntajesObtenidos) {
+        acumulado += registroPuntajesObtenidos[key] || 0;
+      }
+      const puntajeFinal = Math.round(acumulado * 100) / 100;
+      const el = document.getElementById('puntajeScoreSpan');
+      if (el) el.innerText = puntajeFinal;
+    }
+
+    const ribbonPalette = ['#E74C3C', '#3498DB', '#2ECC71', '#F39C12', '#9B59B6', '#1ABC9C', '#E67E22', '#FD79A8'];
+
+    function autoAjustarTexto(textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = (textarea.scrollHeight + 5) + 'px';
+    }
+
+    function setThemeColor(color, element = null) {
+      currentColor = color;
+      document.documentElement.style.setProperty('--primary', color);
+      if (element) {
+        document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+        element.classList.add('active');
+      }
+    }
+
+    async function cargarDatos() {
+      const res = await fetch(`/api/clases/${claseId}`);
+      const data = await res.json();
+      document.getElementById('tituloLeccion').value = data.lectura.titulo;
+
+      if (data.lectura.color) {
+        setThemeColor(data.lectura.color);
+        const dot = document.querySelector(`.color-dot[style*="${data.lectura.color}"]`);
+        if (dot) setThemeColor(data.lectura.color, dot);
+      }
+
+      if (data.lectura.contenido) {
+        try {
+          const bloques = JSON.parse(data.lectura.contenido);
+          if (Array.isArray(bloques)) {
+            bloques.forEach(b => {
+              if (b.tipo === 'mixto') {
+                agregarBloqueMixto(b.texto, b.imagen, b.posicion || 'derecha', b.tamano || 'mediana');
+              } else {
+                agregarBloqueTexto(b.texto || b);
+              }
+            });
+          } else {
+            agregarBloqueTexto(data.lectura.contenido);
+          }
+        } catch(e) {
+          agregarBloqueTexto(data.lectura.contenido);
+        }
+      }
+
+      if (data.preguntas && data.preguntas.length > 0) {
+        data.preguntas.forEach(p => {
+          let datosParseados = p.datos;
+          try { datosParseados = JSON.parse(p.datos); } catch(e){}
+          agregarBloquePregunta({
+            tipo: p.tipo,
+            enunciado: p.enunciado,
+            datos: datosParseados,
+            respuesta_correcta: p.respuesta_correcta
+          });
+        });
+      }
+    }
+
+    /* 1. Bloque Solo Texto */
+    function agregarBloqueTexto(contenido = '') {
+      const div = document.createElement('div');
+      div.className = 'block bloque-contenido';
+      div.dataset.tipoBloque = 'texto';
+      div.innerHTML = `
+        <div class="block-toolbar">
+          <span class="block-tag">📖 Texto de Lectura</span>
+          <button class="btn-del" onclick="this.closest('.block').remove()">🗑️ Eliminar</button>
+        </div>
+        <textarea class="txt-contenido" oninput="autoAjustarTexto(this)" placeholder="Escribe aquí el texto de la lección...">${contenido}</textarea>
+      `;
+      document.getElementById('canvas').appendChild(div);
+      const txtArea = div.querySelector('.txt-contenido');
+      setTimeout(() => autoAjustarTexto(txtArea), 50);
+    }
+
+    /* 2. Bloque Mixto */
+    function agregarBloqueMixto(texto = '', imagenData = '', posicion = 'derecha', tamano = 'mediana') {
+      const div = document.createElement('div');
+      div.className = 'block bloque-contenido';
+      div.dataset.tipoBloque = 'mixto';
+
+      const imgId = 'img_' + Date.now() + Math.floor(Math.random() * 1000);
+
+      div.innerHTML = `
+        <div class="block-toolbar">
+          <span class="block-tag">🖼️ Texto + Imagen</span>
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <label style="font-size:12px; font-weight:bold;">Posición:</label>
+            <select class="input-field select-posicion" onchange="actualizarEstiloImagen(this)" style="width:auto; padding:4px 8px; font-size:12px;">
+              <option value="derecha" ${posicion === 'derecha' ? 'selected' : ''}>A la Derecha ➔</option>
+              <option value="izquierda" ${posicion === 'izquierda' ? 'selected' : ''}>⬅️ A la Izquierda</option>
+              <option value="arriba" ${posicion === 'arriba' ? 'selected' : ''}>⬆️ Arriba del Texto</option>
+            </select>
+
+            <label style="font-size:12px; font-weight:bold; margin-left:8px;">Tamaño Imagen:</label>
+            <select class="input-field select-tamano" onchange="actualizarEstiloImagen(this)" style="width:auto; padding:4px 8px; font-size:12px;">
+              <option value="pequena" ${tamano === 'pequena' ? 'selected' : ''}>Pequeña (200px)</option>
+              <option value="mediana" ${tamano === 'mediana' ? 'selected' : ''}>Mediana (300px)</option>
+              <option value="grande" ${tamano === 'grande' ? 'selected' : ''}>Grande (420px)</option>
+              <option value="full" ${tamano === 'full' ? 'selected' : ''}>Ancho Completo (100%)</option>
+            </select>
+
+            <button class="btn-del" onclick="this.closest('.block').remove()" style="margin-left:10px;">🗑️</button>
+          </div>
+        </div>
+
+        <div class="mixto-editor-wrap clearfix">
+          <div class="img-container-editor pos-${posicion} size-${tamano}">
+            <img id="${imgId}" class="img-preview-render" src="${imagenData || 'https://via.placeholder.com/300x200?text=Cargar+Imagen'}" style="${imagenData ? '' : 'opacity:0.6;'}">
+            <input type="hidden" class="hidden-img-data" value="${imagenData}">
+            
+            <div class="img-controls">
+              <input type="text" class="input-field txt-img-url" placeholder="URL de Imagen" value="${imagenData.startsWith('data:') ? '' : imagenData}" oninput="actualizarUrlImagen(this, '${imgId}')">
+              <label style="background:#E2E8F0; text-align:center; padding:6px; border-radius:6px; cursor:pointer; font-weight:bold; font-size:11px;">
+                📁 Subir Imagen
+                <input type="file" accept="image/*" style="display:none;" onchange="subirArchivoImagen(this, '${imgId}')">
+              </label>
+            </div>
+          </div>
+
+          <textarea class="txt-contenido" oninput="autoAjustarTexto(this)" placeholder="Escribe el texto que acompaña a la imagen aquí...">${texto}</textarea>
+        </div>
+      `;
+
+      document.getElementById('canvas').appendChild(div);
+      const txtArea = div.querySelector('.txt-contenido');
+      setTimeout(() => autoAjustarTexto(txtArea), 50);
+    }
+
+    function actualizarEstiloImagen(select) {
+      const block = select.closest('.block');
+      const pos = block.querySelector('.select-posicion').value;
+      const tam = block.querySelector('.select-tamano').value;
+      const imgBox = block.querySelector('.img-container-editor');
+      
+      imgBox.className = `img-container-editor pos-${pos} size-${tam}`;
+    }
+
+    function actualizarUrlImagen(input, imgId) {
+      const img = document.getElementById(imgId);
+      const hidden = input.closest('.block').querySelector('.hidden-img-data');
+      if (input.value.trim() !== '') {
+        img.src = input.value;
+        img.style.opacity = '1';
+        hidden.value = input.value;
+      }
+    }
+
+    function subirArchivoImagen(fileInput, imgId) {
+      const file = fileInput.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const img = document.getElementById(imgId);
+          img.src = e.target.result;
+          img.style.opacity = '1';
+          fileInput.closest('.block').querySelector('.hidden-img-data').value = e.target.result;
+          fileInput.closest('.block').querySelector('.txt-img-url').value = '';
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    /* 3. Preguntas de Evaluación (Interfaz Rediseñada) */
+    function agregarBloquePregunta(datosExistentes = null) {
+      contadorPreguntas++;
+      const id = contadorPreguntas;
+      const div = document.createElement('div');
+      div.className = 'block bloque-pregunta';
+      div.dataset.id = id;
+
+      const tipo = datosExistentes ? datosExistentes.tipo : 'multiple';
+      const enunciado = datosExistentes ? datosExistentes.enunciado : '';
+
+      div.innerHTML = `
+        <div class="pregunta-header">
+          <select class="tipo-select input-field" style="width:180px; font-weight:600;" onchange="cambiarTipo(${id}, this.value)">
+            <option value="multiple" ${tipo === 'multiple' ? 'selected' : ''}>Opción Múltiple</option>
+            <option value="verdadero_falso" ${tipo === 'verdadero_falso' ? 'selected' : ''}>Verdadero / Falso</option>
+            <option value="unir" ${tipo === 'unir' ? 'selected' : ''}>Unir Palabras</option>
+          </select>
+
+          <div class="pregunta-actions-top">
+            <button type="button" class="btn-add-option" id="btn_add_opt_${id}" onclick="ejecutarAgregarOpcion(${id})">
+              + Agregar Opción
+            </button>
+            <button class="btn-del" title="Eliminar Pregunta" onclick="this.closest('.block').remove()">🗑️</button>
+          </div>
+        </div>
+        
+        <div style="margin-bottom:12px;">
+          <input type="text" class="enunciado input-field" value="${enunciado}" placeholder="Escribe el enunciado de la pregunta..." style="font-weight:bold; font-size:15px;" required>
+        </div>
+
+        <div id="detalles_${id}"></div>
+      `;
+      
+      document.getElementById('canvas').appendChild(div);
+      cambiarTipo(id, tipo, datosExistentes);
+    }
+
+    function ejecutarAgregarOpcion(id) {
+      const select = document.querySelector(`.bloque-pregunta[data-id="${id}"] .tipo-select`);
+      if (!select) return;
+      const tipo = select.value;
+
+      if (tipo === 'multiple') addOpcionMultiple(id);
+      else if (tipo === 'verdadero_falso') addAfirmacionVF(id);
+      else if (tipo === 'unir') addParejaUnir(id);
+    }
+
+    function cambiarTipo(id, tipo, datosExistentes = null) {
+      const cont = document.getElementById(`detalles_${id}`);
+      const btnAdd = document.getElementById(`btn_add_opt_${id}`);
+
+      if (btnAdd) {
+        if (tipo === 'multiple') btnAdd.innerText = '+ Agregar Opción';
+        else if (tipo === 'verdadero_falso') btnAdd.innerText = '+ Agregar Afirmación';
+        else if (tipo === 'unir') btnAdd.innerText = '+ Agregar Pareja';
+      }
+
+      if (tipo === 'verdadero_falso') {
+        cont.innerHTML = `<div id="vf_list_${id}"></div>`;
+        if (datosExistentes && Array.isArray(datosExistentes.datos)) {
+          datosExistentes.datos.forEach(item => addAfirmacionVF(id, item.texto, item.respuesta));
+        } else {
+          addAfirmacionVF(id);
+        }
+
+      } else if (tipo === 'multiple') {
+        cont.innerHTML = `<div id="opciones_list_${id}"></div>`;
+        if (datosExistentes && Array.isArray(datosExistentes.datos)) {
+          datosExistentes.datos.forEach(opt => {
+            addOpcionMultiple(id, opt, opt === datosExistentes.respuesta_correcta);
+          });
+        } else {
+  addOpcionMultiple(id, '', true);
+}
+
+      } else if (tipo === 'unir') {
+        cont.innerHTML = `<div id="unir_list_${id}"></div>`;
+        if (datosExistentes && typeof datosExistentes.datos === 'string') {
+          datosExistentes.datos.split(', ').forEach(p => {
+            const [pal, def] = p.split(' = ');
+            addParejaUnir(id, pal || '', def || '');
+          });
+        } else {
+          addParejaUnir(id); addParejaUnir(id);
+        }
+      }
+    }
+
+    function addAfirmacionVF(id, texto = '', respuesta = 'V') {
+      const list = document.getElementById(`vf_list_${id}`);
+      const row = document.createElement('div');
+      row.className = 'vf-row';
+      row.innerHTML = `
+        <input type="text" class="input-field txt-vf-enunciado" style="margin:0; flex:1;" value="${texto}" placeholder="Afirmación..." required>
+        <button type="button" class="btn-vf btn-vf-v ${respuesta === 'V' ? 'active' : ''}" onclick="setVFRow(this, 'V')">V</button>
+        <button type="button" class="btn-vf btn-vf-f ${respuesta === 'F' ? 'active' : ''}" onclick="setVFRow(this, 'F')">F</button>
+        <input type="hidden" class="txt-vf-respuesta" value="${respuesta}">
+        <button type="button" onclick="this.parentElement.remove()" style="border:none; background:none; cursor:pointer;" title="Eliminar línea">❌</button>
+      `;
+      list.appendChild(row);
+    }
+
+    function setVFRow(btn, val) {
+      const row = btn.parentElement;
+      row.querySelectorAll('.btn-vf').forEach(b => b.classList.remove('active'));
+      if (val === 'V') row.querySelector('.btn-vf-v').classList.add('active');
+      if (val === 'F') row.querySelector('.btn-vf-f').classList.add('active');
+      row.querySelector('.txt-vf-respuesta').value = val;
+    }
+
+    function addOpcionMultiple(id, valor = '', checked = false) {
+      const list = document.getElementById(`opciones_list_${id}`);
+      const row = document.createElement('div');
+      row.className = 'opcion-row';
+      row.innerHTML = `
+        <input type="radio" name="correcta_${id}" class="radio-correcta" ${checked ? 'checked' : ''}>
+        <input type="text" class="input-field txt-opcion" style="margin:0;" value="${valor}" placeholder="Opción" required>
+        <button type="button" onclick="this.parentElement.remove()" style="border:none; background:none; cursor:pointer;" title="Eliminar línea">❌</button>
+      `;
+      list.appendChild(row);
+
+      // Evento para auto-crear opciones al pegar texto con saltos de línea
+      const input = row.querySelector('.txt-opcion');
+      input.addEventListener('paste', function(e) {
+        const textoPegado = (e.clipboardData || window.clipboardData).getData('text');
+        
+        if (textoPegado.includes('\n')) {
+          e.preventDefault();
+          const lineas = textoPegado
+            .split(/\r?\n/)
+            .map(l => l.trim())
+            .filter(l => l.length > 0);
+
+          if (lineas.length > 0) {
+            this.value = lineas[0];
+            for (let i = 1; i < lineas.length; i++) {
+              addOpcionMultiple(id, lineas[i], false);
+            }
+          }
+        }
+      });
+    }
+
+    function addParejaUnir(id, palabra = '', definicion = '') {
+      const list = document.getElementById(`unir_list_${id}`);
+      const row = document.createElement('div');
+      row.className = 'unir-row';
+      row.innerHTML = `
+        <input type="text" class="input-field txt-palabra" style="margin:0;" value="${palabra}" placeholder="Concepto / Palabra" required>
+        <span>➔</span>
+        <input type="text" class="input-field txt-definicion" style="margin:0;" value="${definicion}" placeholder="Respuesta Pareja" required>
+        <button type="button" onclick="this.parentElement.remove()" style="border:none; background:none; cursor:pointer;" title="Eliminar línea">❌</button>
+      `;
+      list.appendChild(row);
+    }
+
+    /* VISTA PREVIA INTERACTIVA CON EVALUACIÓN DE PUNTOS AUTOMÁTICOS */
+    function abrirVistaPrevia() {
+      const previewBody = document.getElementById('previewBody');
+      const titulo = document.getElementById('tituloLeccion').value || 'Sin Título';
+      
+      registroPuntajesObtenidos = {};
+      puntajeTotalMaximo = 0;
+
+      const preguntas = document.querySelectorAll('.bloque-pregunta');
+      preguntas.forEach(card => {
+        const tipo = card.querySelector('.tipo-select').value;
+        if (tipo === 'multiple') {
+          puntajeTotalMaximo += 1;
+        } else if (tipo === 'verdadero_falso') {
+          puntajeTotalMaximo += card.querySelectorAll('.vf-row').length;
+        } else if (tipo === 'unir') {
+          puntajeTotalMaximo += card.querySelectorAll('.unir-row').length;
+        }
+      });
+
+      let html = `<h1 style="color:${currentColor}; border-bottom:3px solid ${currentColor}; padding-bottom:10px; margin-top:0;">${titulo}</h1>`;
+
+      document.querySelectorAll('.bloque-contenido').forEach(card => {
+        const tipoBloque = card.dataset.tipoBloque;
+        const texto = card.querySelector('.txt-contenido').value.replace(/\n/g, '<br>');
+
+        if (tipoBloque === 'mixto') {
+          const img = card.querySelector('.hidden-img-data').value;
+          const pos = card.querySelector('.select-posicion').value;
+          const tam = card.querySelector('.select-tamano').value;
+
+          let pxWidth = '300px';
+          if (tam === 'pequena') pxWidth = '200px';
+          if (tam === 'grande') pxWidth = '420px';
+          if (tam === 'full' || pos === 'arriba') pxWidth = '100%';
+
+          let floatStyle = '';
+          if (pos === 'derecha') {
+            floatStyle = `float: right; margin-left: 20px; margin-bottom: 15px; width: ${pxWidth};`;
+          } else if (pos === 'izquierda') {
+            floatStyle = `float: left; margin-right: 20px; margin-bottom: 15px; width: ${pxWidth};`;
+          } else {
+            floatStyle = `display: block; margin: 0 auto 15px auto; width: ${pxWidth};`;
+          }
+
+          html += `
+            <div style="margin-bottom: 25px; width: 100%;" class="clearfix">
+              ${img ? `<img src="${img}" style="max-height:450px; object-fit:cover; border-radius:10px; box-shadow:0 3px 8px rgba(0,0,0,0.1); ${floatStyle}">` : ''}
+              <div style="font-size:16px; line-height:1.7; color:#2D3436; text-align:justify;">${texto}</div>
+              <div style="clear:both;"></div>
+            </div>
+          `;
+        } else {
+          html += `<div style="font-size:16px; line-height:1.7; color:#2D3436; margin-bottom:20px; text-align:justify;">${texto}</div>`;
+        }
+      });
+
+      if (preguntas.length > 0) {
+        html += `
+          <div style="display:flex; justify-content:space-between; align-items:center; border-top:2px dashed #CBD5E1; margin-top:40px; padding-top:20px;">
+            <h2 style="color:${currentColor}; margin:0;">📝 Preguntas de Evaluación</h2>
+            <div style="background:${currentColor}; color:white; padding:6px 16px; border-radius:20px; font-weight:bold; font-size:15px; box-shadow:0 2px 8px rgba(0,0,0,0.15);">
+              Puntaje: <span id="puntajeScoreSpan">0</span> / ${puntajeTotalMaximo} pts
+            </div>
+          </div>
+        `;
+        
+        preguntas.forEach((card, idx) => {
+          const tipo = card.querySelector('.tipo-select').value;
+          const enunciado = card.querySelector('.enunciado').value;
+
+          let ptsPregunta = 1;
+          if (tipo === 'verdadero_falso') ptsPregunta = card.querySelectorAll('.vf-row').length;
+          if (tipo === 'unir') ptsPregunta = card.querySelectorAll('.unir-row').length;
+
+          html += `<div style="background:#F8FAFC; border-radius:12px; padding:20px; margin-top:20px; margin-bottom:20px; border-left:5px solid ${currentColor}; box-shadow:0 2px 6px rgba(0,0,0,0.03);">`;
+          html += `<p style="font-weight:bold; font-size:17px; margin-top:0;">${idx + 1}. ${enunciado} <span style="color:${currentColor}; font-size:14px;">(${ptsPregunta} pt${ptsPregunta > 1 ? 's' : ''})</span></p>`;
+
+          if (tipo === 'multiple') {
+            let correcta = '';
+            card.querySelectorAll('.opcion-row').forEach(row => {
+              if (row.querySelector('.radio-correcta').checked) correcta = row.querySelector('.txt-opcion').value;
+            });
+
+            card.querySelectorAll('.opcion-row').forEach(row => {
+              const optText = row.querySelector('.txt-opcion').value;
+              html += `
+                <button class="prev-opt-btn" onclick="evaluarMultiple(this, '${optText.replace(/'/g, "\\'")}', '${correcta.replace(/'/g, "\\'")}', 'q_${idx}', 1)">
+                  ${optText}
+                </button>
+              `;
+            });
+
+          } else if (tipo === 'verdadero_falso') {
+            const filasVF = card.querySelectorAll('.vf-row');
+
+            filasVF.forEach((row, vfIdx) => {
+              const vfText = row.querySelector('.txt-vf-enunciado').value;
+              const vfCorrecta = row.querySelector('.txt-vf-respuesta').value;
+              const itemKey = `q_${idx}_vf_${vfIdx}`;
+
+              html += `
+                <div class="vf-interactive-row">
+                  <span style="font-size:15px; font-weight:500;">${vfText}</span>
+                  <div style="display:flex; gap:8px;">
+                    <button class="btn-vf-prev" onclick="evaluarVF(this, 'V', '${vfCorrecta}', '${itemKey}', 1)">V</button>
+                    <button class="btn-vf-prev" onclick="evaluarVF(this, 'F', '${vfCorrecta}', '${itemKey}', 1)">F</button>
+                  </div>
+                </div>
+              `;
+            });
+
+          } else if (tipo === 'unir') {
+            const conceptos = [];
+            const respuestas = [];
+            const filasUnir = card.querySelectorAll('.unir-row');
+
+            filasUnir.forEach((row, rIdx) => {
+              const pal = row.querySelector('.txt-palabra').value;
+              const def = row.querySelector('.txt-definicion').value;
+              const color = ribbonPalette[rIdx % ribbonPalette.length];
+              conceptos.push({ id: rIdx, texto: pal, color, parejaDef: def });
+              respuestas.push({ id: rIdx, texto: def, parejaPal: pal });
+            });
+
+            respuestas.sort(() => Math.random() - 0.5);
+
+            html += `<div class="unir-container" id="unir_q_${idx}" data-pts-item="1">`;
+            
+            html += `<div class="unir-col-left" style="display:flex; flex-direction:column; gap:10px;">`;
+            conceptos.forEach((c, cIdx) => {
+              html += `
+                <div class="card-ribbon item-concepto" 
+                     style="--ribbon-color: ${c.color};" 
+                     data-id="${c.id}" 
+                     data-key="q_${idx}_unir_${cIdx}"
+                     data-pareja="${c.parejaDef.replace(/"/g, '&quot;')}" 
+                     data-color="${c.color}"
+                     onclick="seleccionarConceptoUnir(this)">
+                  <span>${c.texto}</span>
+                  <span class="status-icon"></span>
+                </div>
+              `;
+            });
+            html += `</div>`;
+
+            html += `<div class="unir-col-right" style="display:flex; flex-direction:column; gap:10px;">`;
+            respuestas.forEach((r, rIdx) => {
+              html += `
+                <div class="card-ribbon item-respuesta" 
+                     style="--ribbon-color: #94A3B8;" 
+                     data-id="${rIdx}"
+                     data-texto="${r.texto.replace(/"/g, '&quot;')}" 
+                     onclick="seleccionarRespuestaUnir(this)">
+                  <span>${r.texto}</span>
+                  <span class="status-icon"></span>
+                </div>
+              `;
+            });
+            html += `</div>`;
+
+            html += `</div>`;
+          }
+
+          html += `</div>`;
+        });
+      }
+
+      previewBody.innerHTML = html;
+      document.getElementById('modalPreview').style.display = 'flex';
+      actualizarPuntajeUI();
+    }
+
+    function evaluarMultiple(btn, elegida, correcta, qKey, ptsTotal) {
+      const parent = btn.parentElement;
+      parent.querySelectorAll('.prev-opt-btn').forEach(b => b.classList.remove('correct', 'incorrect'));
+
+      if (elegida === correcta) {
+        btn.classList.add('correct');
+        btn.innerHTML = `${elegida} &nbsp; ✔️ ¡Correcto!`;
+        registroPuntajesObtenidos[qKey] = ptsTotal;
+      } else {
+        btn.classList.add('incorrect');
+        btn.innerHTML = `${elegida} &nbsp; ❌ Inténtalo de nuevo`;
+        registroPuntajesObtenidos[qKey] = 0;
+      }
+      actualizarPuntajeUI();
+    }
+
+    function evaluarVF(btn, elegida, correcta, itemKey, ptsPorItem) {
+      const parent = btn.parentElement;
+      parent.querySelectorAll('.btn-vf-prev').forEach(b => b.classList.remove('correct', 'incorrect'));
+
+      if (elegida === correcta) {
+        btn.classList.add('correct');
+        registroPuntajesObtenidos[itemKey] = ptsPorItem;
+      } else {
+        btn.classList.add('incorrect');
+        registroPuntajesObtenidos[itemKey] = 0;
+      }
+      actualizarPuntajeUI();
+    }
+
+    /* UNIR PAREJAS Y DESVINCULACIÓN CON AJUSTE DE PUNTOS */
+    let conceptoSeleccionado = null;
+
+    function desvincularParejaPorMatchId(container, matchId) {
+      const elementos = container.querySelectorAll(`[data-match-id="${matchId}"]`);
+      elementos.forEach(el => {
+        if (el.dataset.key) {
+          registroPuntajesObtenidos[el.dataset.key] = 0;
+        }
+        el.classList.remove('paired', 'selected');
+        delete el.dataset.matchId;
+        el.querySelector('.status-icon').innerHTML = '';
+        
+        if (el.classList.contains('item-respuesta')) {
+          el.style.setProperty('--ribbon-color', '#94A3B8');
+        } else if (el.classList.contains('item-concepto')) {
+          el.style.setProperty('--ribbon-color', el.dataset.color);
+        }
+      });
+      actualizarPuntajeUI();
+    }
+
+    function seleccionarConceptoUnir(el) {
+      const contenedor = el.closest('.unir-container');
+
+      if (el.classList.contains('paired')) {
+        desvincularParejaPorMatchId(contenedor, el.dataset.matchId);
+      }
+
+      contenedor.querySelectorAll('.item-concepto').forEach(c => c.classList.remove('selected'));
+
+      el.classList.add('selected');
+      conceptoSeleccionado = el;
+    }
+
+    function seleccionarRespuestaUnir(elRes) {
+      const contenedor = elRes.closest('.unir-container');
+
+      if (elRes.classList.contains('paired')) {
+        desvincularParejaPorMatchId(contenedor, elRes.dataset.matchId);
+      }
+
+      if (!conceptoSeleccionado) return;
+
+      const ptsPorItem = parseFloat(contenedor.dataset.ptsItem) || 1;
+      const color = conceptoSeleccionado.dataset.color;
+      const parejaCorrecta = conceptoSeleccionado.dataset.pareja;
+      const textoRespuesta = elRes.dataset.texto;
+      const key = conceptoSeleccionado.dataset.key;
+
+      const matchId = 'match_' + Date.now();
+      conceptoSeleccionado.dataset.matchId = matchId;
+      elRes.dataset.matchId = matchId;
+
+      conceptoSeleccionado.style.setProperty('--ribbon-color', color);
+      elRes.style.setProperty('--ribbon-color', color);
+
+      conceptoSeleccionado.classList.remove('selected');
+      conceptoSeleccionado.classList.add('paired');
+      elRes.classList.add('paired');
+
+      if (textoRespuesta === parejaCorrecta) {
+        conceptoSeleccionado.querySelector('.status-icon').innerHTML = '✔️';
+        elRes.querySelector('.status-icon').innerHTML = '✔️';
+        if (key) registroPuntajesObtenidos[key] = ptsPorItem;
+      } else {
+        conceptoSeleccionado.querySelector('.status-icon').innerHTML = '❌';
+        elRes.querySelector('.status-icon').innerHTML = '❌';
+        if (key) registroPuntajesObtenidos[key] = 0;
+      }
+
+      actualizarPuntajeUI();
+      conceptoSeleccionado = null;
+    }
+
+    function cerrarVistaPrevia() {
+      document.getElementById('modalPreview').style.display = 'none';
+      conceptoSeleccionado = null;
+    }
+
+    /* Guardar Lección */
+    async function guardarLeccion() {
+      const titulo = document.getElementById('tituloLeccion').value;
+      const bloquesContenido = [];
+
+      document.querySelectorAll('.bloque-contenido').forEach(card => {
+        const tipoBloque = card.dataset.tipoBloque;
+        const texto = card.querySelector('.txt-contenido').value;
+
+        if (tipoBloque === 'mixto') {
+          const imagen = card.querySelector('.hidden-img-data').value;
+          const posicion = card.querySelector('.select-posicion').value;
+          const tamano = card.querySelector('.select-tamano').value;
+          bloquesContenido.push({ tipo: 'mixto', texto, imagen, posicion, tamano });
+        } else {
+          bloquesContenido.push({ tipo: 'texto', texto });
+        }
+      });
+
+      const preguntas = [];
+      document.querySelectorAll('.bloque-pregunta').forEach(card => {
+        const id = card.dataset.id;
+        const tipo = card.querySelector('.tipo-select').value;
+        const enunciado = card.querySelector('.enunciado').value;
+        
+        let datos = '', respuesta_correcta = '';
+        let puntos = 1;
+
+        if (tipo === 'multiple') {
+          puntos = 1;
+          const opciones = [];
+          card.querySelectorAll('.opcion-row').forEach(row => {
+            const txt = row.querySelector('.txt-opcion').value;
+            opciones.push(txt);
+            if (row.querySelector('.radio-correcta').checked) respuesta_correcta = txt;
+          });
+          datos = opciones;
+        } else if (tipo === 'verdadero_falso') {
+          const vfItems = [];
+          const filasVF = card.querySelectorAll('.vf-row');
+          puntos = filasVF.length;
+          filasVF.forEach(row => {
+            vfItems.push({
+              texto: row.querySelector('.txt-vf-enunciado').value,
+              respuesta: row.querySelector('.txt-vf-respuesta').value
+            });
+          });
+          datos = vfItems;
+          respuesta_correcta = vfItems.map(i => i.respuesta).join(',');
+        } else if (tipo === 'unir') {
+          const parejas = [];
+          const filasUnir = card.querySelectorAll('.unir-row');
+          puntos = filasUnir.length;
+          filasUnir.forEach(row => {
+            parejas.push(`${row.querySelector('.txt-palabra').value} = ${row.querySelector('.txt-definicion').value}`);
+          });
+          datos = parejas.join(', ');
+        }
+        preguntas.push({ tipo, enunciado, datos, respuesta_correcta, puntos });
+      });
+
+      const res = await fetch(`/api/clases/${claseId}/guardar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          titulo, 
+          texto: JSON.stringify(bloquesContenido), 
+          color: currentColor,
+          preguntas 
+        })
+      });
+
+      if (res.ok) {
+        const btnGuardar = document.querySelector('.btn-save');
+        const textoOriginal = btnGuardar.innerHTML;
+        
+        btnGuardar.innerHTML = '¡Guardado Exitosamente! ✅';
+        btnGuardar.style.background = '#10B981'; 
+        
+        setTimeout(() => {
+          btnGuardar.innerHTML = textoOriginal;
+          btnGuardar.style.background = 'var(--primary)';
+        }, 3000);
+      }
+    }
+
+    cargarDatos();
+  </script>
+</body>
+</html>

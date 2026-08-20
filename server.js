@@ -92,6 +92,19 @@ app.delete('/api/clases/:id', (req, res) => {
     });
   });
 });
+// Guardar resultado del estudiante
+app.post('/api/resultados', (req, res) => {
+  const { usuario, lectura_id, puntaje, total_preguntas } = req.body;
+  
+  db.run(
+    'INSERT INTO resultados (usuario, lectura_id, puntaje, total_preguntas) VALUES (?, ?, ?, ?)',
+    [usuario, lectura_id, puntaje, total_preguntas],
+    function(err) {
+      if (err) return res.status(500).json({ error: 'Error al guardar resultado' });
+      res.json({ message: 'Resultado guardado exitosamente', id: this.lastID });
+    }
+  );
+});
 // Ruta para que el admin vea los resultados
 app.get('/api/resultados', (req, res) => {
   const query = `

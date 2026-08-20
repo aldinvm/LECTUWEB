@@ -21,7 +21,6 @@ app.get('/api/clases', (req, res) => {
     SELECT l.*, 
     (SELECT COUNT(*) FROM resultados r WHERE r.lectura_id = l.id AND r.usuario = ?) as completada
     FROM lecturas l
-    WHERE l.estado = 'publicado'
   `;
   db.all(query, [usuario], (err, rows) => {
     if (err) return res.status(500).json({ error: 'Error al obtener clases' });

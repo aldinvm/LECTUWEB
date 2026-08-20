@@ -88,7 +88,7 @@ app.delete('/api/clases/:id', (req, res) => {
 });
 // Ruta para que el admin vea los resultados
 app.get('/api/resultados', (req, res) => {
- const query = `
+  const query = `
     SELECT r.usuario, l.titulo as lectura, r.puntaje 
     FROM resultados r
     JOIN lecturas l ON r.lectura_id = l.id
@@ -99,7 +99,7 @@ app.get('/api/resultados', (req, res) => {
     res.json(rows);
   });
 });
-});
+
 const PORT = process.env.PORT || 10000;
 
 app.listen(PORT, '0.0.0.0', () => {

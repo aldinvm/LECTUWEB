@@ -126,6 +126,14 @@
     }
 
     .btn-eliminar:hover { background: #b71c1c; }
+  .btn-resultados {
+      background: var(--accent); color: white; border: none; padding: 12px 24px;
+      border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 16px; margin-left: 10px;
+    }
+    .tabla-resultados {
+      width: 100%; background: rgba(255, 255, 255, 0.95); border-radius: 16px; 
+      padding: 20px; margin-top: 20px; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    }  
   </style>
 </head>
 <body>
@@ -136,9 +144,21 @@
   </nav>
 
   <div class="container">
-    <div class="header-dashboard">
+<div class="header-dashboard">
       <h1>📚 Mis Lecciones</h1>
-      <button class="btn-crear" onclick="crearNuevaLeccion()">+ Crear Nueva Lección</button>
+      <div>
+        <button class="btn-crear" onclick="crearNuevaLeccion()">+ Crear Nueva Lección</button>
+        <button class="btn-resultados" onclick="toggleResultados()">📊 Ver Resultados</button>
+      </div>
+    </div>
+
+    <!-- Contenedor de la tabla -->
+    <div id="contenedorResultados" class="tabla-resultados">
+      <h2>Resultados recientes</h2>
+      <table style="width: 100%; text-align: left; border-collapse: collapse;">
+        <thead><tr><th>Estudiante</th><th>Lección</th><th>Puntaje</th></tr></thead>
+        <tbody id="bodyResultados"></tbody>
+      </table>
     </div>
 
     <div class="lecciones-grid" id="gridLecciones">
@@ -213,6 +233,41 @@
 
     function cerrarSesion() {
       window.location.href = 'index.html'; 
+    }
+
+async function toggleResultados() {
+      const div = document.getElementById('contenedorResultados');
+      const grid = document.getElementById('gridLecciones');
+      
+      if (div.style.display === 'none') {
+        div.style.display = 'block';
+        grid.style.display = 'none'; 
+        
+        try {
+          const res = await fetch('/api/resultados');
+          const data = await res.json();
+          const body = document.getElementById('bodyResultados');
+          
+          if (!data || data.length === 0) {
+            body.innerHTML = `<tr><td colspan="3" style="padding: 15px; text-align: center;">No hay resultados registrados todavía.</td></tr>`;
+            return;
+          }
+
+          body.innerHTML = data.map(r => `
+            <tr>
+              <td style="padding: 12px; border-bottom: 1px solid #eee;">${r.usuario}</td>
+              <td style="padding: 12px; border-bottom: 1px solid #eee;">${r.lectura}</td>
+              <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>${r.puntaje}</strong></td>
+            </tr>
+          `).join('');
+        } catch (e) {
+          console.error(e);
+          alert("Error al cargar los resultados.");
+        }
+      } else {
+        div.style.display = 'none';
+        grid.style.display = 'flex';
+      }
     }
 
     cargarLecciones();

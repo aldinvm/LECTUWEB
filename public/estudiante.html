@@ -550,7 +550,7 @@
         `;
 
         try {
-const usuarioActual = sessionStorage.getItem('username') || 'Desconocido';
+const usuarioActual = localStorage.getItem('usuario') || 'Desconocido';
           const res = await fetch(`/api/clases?usuario=${usuarioActual}`);
           const lecciones = await res.json();
           const grid = document.getElementById('gridLecciones');
@@ -772,7 +772,7 @@ const usuarioActual = sessionStorage.getItem('username') || 'Desconocido';
 
 // ENVIAR RESULTADOS AL SERVIDOR Y MARCAR COMO COMPLETADA
     if (idLeccion) {
-      const usuarioActual = sessionStorage.getItem('username') || 'Desconocido';
+      const usuarioActual = localStorage.getItem('usuario') || 'Desconocido';
       fetch('/api/resultados', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

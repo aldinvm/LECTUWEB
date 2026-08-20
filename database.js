@@ -38,7 +38,10 @@ db.serialize(() => {
   db.run(`ALTER TABLE preguntas ADD COLUMN puntos INTEGER DEFAULT 1`, (err) => {
     // Si la columna ya existe, SQLite dará un aviso que podemos ignorar
   });
-
+// Agrega la columna estado a lecturas si ya existía la base de datos
+  db.run(`ALTER TABLE lecturas ADD COLUMN estado TEXT DEFAULT 'borrador'`, (err) => {
+    // Si la columna ya existe, SQLite dará un aviso que podemos ignorar
+  });
   db.run(`CREATE TABLE IF NOT EXISTS resultados (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     usuario TEXT,

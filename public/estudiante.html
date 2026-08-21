@@ -803,7 +803,7 @@ const usuarioActual = localStorage.getItem('usuario') || 'Desconocido';
       `;
       banner.style.display = 'block';
       banner.scrollIntoView({ behavior: 'smooth' });
-
+document.getElementById('seccionPreguntas').style.pointerEvents = 'none';
       // Desactivar el botón de envío
       const btnEnviar = document.querySelector('.btn-enviar-examen');
       if (btnEnviar) {

@@ -355,8 +355,13 @@
 
   <nav class="navbar">
     <div class="navbar-brand" id="navBrand">📖 Aula de Lectura</div>
-    <div id="navButton"></div>
-  </nav>
+<div style="display: flex; gap: 10px; align-items: center;">
+  <div style="background: rgba(255,255,255,0.85); padding: 4px 8px; border-radius: 8px; border: 1px solid #CBD5E1; display: flex; gap: 4px;">
+    <button onclick="cambiarTamanoTexto(1)" style="border:none; background:white; font-weight:bold; cursor:pointer; font-size:15px; padding:4px 10px; border-radius:6px; box-shadow:0 1px 3px rgba(0,0,0,0.1);" title="Aumentar letra">A+</button>
+    <button onclick="cambiarTamanoTexto(-1)" style="border:none; background:white; font-weight:bold; cursor:pointer; font-size:15px; padding:4px 10px; border-radius:6px; box-shadow:0 1px 3px rgba(0,0,0,0.1);" title="Reducir letra">A-</button>
+  </div>
+  <div id="navButton"></div>
+</div>  </nav>
 
   <div class="container" id="appContainer"></div>
 
@@ -813,7 +818,23 @@ document.getElementById('seccionPreguntas').style.pointerEvents = 'none';
         btnEnviar.innerText = 'Examen Evaluado ✅';
       }
     }
+let tamanoActual = 16;
 
+function cambiarTamanoTexto(delta) {
+  tamanoActual += delta * 2;
+  if (tamanoActual < 12) tamanoActual = 12;
+  if (tamanoActual > 26) tamanoActual = 26;
+
+  // Ajusta las lecturas y párrafos
+  document.querySelectorAll('#contenidoLeccion div, #contenidoLeccion p').forEach(el => {
+    el.style.fontSize = tamanoActual + 'px';
+  });
+
+  // Ajusta preguntas y opciones
+  document.querySelectorAll('.pregunta-card p, .prev-opt-btn, .vf-interactive-row span, .card-ribbon').forEach(el => {
+    el.style.fontSize = (tamanoActual - 1) + 'px';
+  });
+}
     iniciar();
   </script>
 </body>

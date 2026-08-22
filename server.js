@@ -163,11 +163,84 @@ app.put('/api/clases/:id/titulo', (req, res) => {
   );
 });
 
+function textoPlanoServidor(valor = '') {
+  return String(valor || '')
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .trim();
+}
+
+function validarPreguntasServidor(preguntas) {
+  if (!Array.isArray(preguntas)) return null;
+
+  for (let i = 0; i < preguntas.length; i++) {
+    const p = preguntas[i] || {};
+    const numero = i + 1;
+
+    if (!textoPlanoServidor(p.enunciado)) {
+      return `La pregunta ${numero} necesita un enunciado.`;
+    }
+
+    if (p.tipo === 'multiple') {
+      const opciones = Array.isArray(p.datos) ? p.datos : [];
+
+      if (opciones.length < 2) {
+        return `La pregunta ${numero} necesita al menos 2 alternativas.`;
+      }
+
+      if (opciones.some(op => !String(op || '').trim())) {
+        return `La pregunta ${numero} contiene alternativas vacías.`;
+      }
+
+      const match = String(p.respuesta_correcta || '').match(/^idx:(\d+)$/);
+      if (!match) {
+        return `Selecciona la alternativa correcta de la pregunta ${numero}.`;
+      }
+
+      const idx = Number(match[1]);
+      if (!Number.isInteger(idx) || idx < 0 || idx >= opciones.length) {
+        return `La respuesta correcta de la pregunta ${numero} no es válida.`;
+      }
+    }
+
+    if (p.tipo === 'verdadero_falso') {
+      const items = Array.isArray(p.datos) ? p.datos : [];
+      if (items.length === 0 || items.some(item => !String(item?.texto || '').trim())) {
+        return `Completa todas las afirmaciones de la pregunta ${numero}.`;
+      }
+    }
+
+    if (p.tipo === 'unir') {
+      const parejas = String(p.datos || '')
+        .split(', ')
+        .filter(Boolean);
+
+      if (
+        parejas.length === 0 ||
+        parejas.some(par => {
+          const partes = par.split(' = ');
+          return partes.length < 2 || !partes[0].trim() || !partes.slice(1).join(' = ').trim();
+        })
+      ) {
+        return `Completa todas las parejas de la pregunta ${numero}.`;
+      }
+    }
+  }
+
+  return null;
+}
+
 // Guardar el contenido sin cambiar su estado.
 // Guardar NO publica una lección.
 app.post('/api/clases/:id/guardar', (req, res) => {
   const claseId = req.params.id;
   const { titulo, texto, color, preguntas } = req.body;
+
+  const errorPreguntas = validarPreguntasServidor(preguntas);
+  if (errorPreguntas) {
+    return res.status(400).json({ error: errorPreguntas });
+  }
 
   db.run(
     `UPDATE lecturas

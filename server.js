@@ -33,9 +33,16 @@ app.get('/api/clases', (req, res) => {
   const usuario = req.query.usuario || 'Desconocido';
   const esAdmin = req.query.admin === 'true';
 
+  // La lista solo devuelve los datos que necesita cada tarjeta.
+  // El contenido completo (que puede incluir imágenes Base64) se solicita
+  // únicamente al abrir una lección.
   const query = esAdmin
     ? `
-      SELECT l.*,
+      SELECT
+        l.id,
+        l.titulo,
+        l.estado,
+        l.color,
         (
           SELECT COUNT(*)
           FROM resultados r
@@ -45,7 +52,11 @@ app.get('/api/clases', (req, res) => {
       ORDER BY l.id DESC
     `
     : `
-      SELECT l.*,
+      SELECT
+        l.id,
+        l.titulo,
+        l.estado,
+        l.color,
         (
           SELECT COUNT(*)
           FROM resultados r

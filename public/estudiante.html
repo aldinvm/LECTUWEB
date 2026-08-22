@@ -175,6 +175,19 @@
     }
 
     .pregunta-card.resultado-correcto { border-left-color: #10B981 !important; }
+
+    /* Una vez enviado el examen, las preguntas quedan solo para lectura. */
+    .pregunta-card.evaluacion-bloqueada {
+      pointer-events: none !important;
+    }
+
+    .pregunta-card.evaluacion-bloqueada button,
+    .pregunta-card.evaluacion-bloqueada input,
+    .pregunta-card.evaluacion-bloqueada select,
+    .pregunta-card.evaluacion-bloqueada textarea,
+    .pregunta-card.evaluacion-bloqueada .card-ribbon {
+      cursor: default !important;
+    }
     .pregunta-card.resultado-incorrecto { border-left-color: #EF4444 !important; }
 
     /* Opción Múltiple */
@@ -499,6 +512,7 @@
     const ribbonPalette = ['#EF4444', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#06B6D4', '#F97316', '#EC4899'];
     let conceptoSeleccionado = null;
     let preguntasGlobales = [];
+    let examenBloqueado = false;
 
     async function iniciar() {
       if (idLeccion) {
@@ -764,12 +778,14 @@ const usuarioActual = localStorage.getItem('usuario') || 'Desconocido';
 
     /* SELECCIÓN PREVIA A EVALUACIÓN */
     function seleccionarOpcionMultiple(btn) {
+      if (examenBloqueado) return;
       const parent = btn.parentElement;
       parent.querySelectorAll('.prev-opt-btn').forEach(b => b.classList.remove('user-selected'));
       btn.classList.add('user-selected');
     }
 
     function seleccionarVF(btn, val) {
+      if (examenBloqueado) return;
       const row = btn.parentElement;
       row.querySelectorAll('.btn-vf-prev').forEach(b => b.classList.remove('user-selected'));
       btn.classList.add('user-selected');
@@ -789,6 +805,7 @@ const usuarioActual = localStorage.getItem('usuario') || 'Desconocido';
     }
 
     function seleccionarConceptoUnir(el) {
+      if (examenBloqueado) return;
       const contenedor = el.closest('.unir-container');
       if (el.classList.contains('paired')) {
         desvincularParejaPorMatchId(contenedor, el.dataset.matchId);
@@ -799,6 +816,7 @@ const usuarioActual = localStorage.getItem('usuario') || 'Desconocido';
     }
 
     function seleccionarRespuestaUnir(elRes) {
+      if (examenBloqueado) return;
       const contenedor = elRes.closest('.unir-container');
       if (elRes.classList.contains('paired')) {
         desvincularParejaPorMatchId(contenedor, elRes.dataset.matchId);
@@ -819,8 +837,32 @@ const usuarioActual = localStorage.getItem('usuario') || 'Desconocido';
       conceptoSeleccionado = null;
     }
 
+    function bloquearEvaluacionDespuesDeEnviar() {
+      examenBloqueado = true;
+      conceptoSeleccionado = null;
+
+      document.querySelectorAll('.pregunta-card').forEach(card => {
+        card.classList.add('evaluacion-bloqueada');
+        card.setAttribute('aria-disabled', 'true');
+
+        card.querySelectorAll('button, input, select, textarea').forEach(control => {
+          control.disabled = true;
+          control.setAttribute('aria-disabled', 'true');
+          control.setAttribute('tabindex', '-1');
+        });
+
+        card.querySelectorAll('.card-ribbon').forEach(item => {
+          item.style.pointerEvents = 'none';
+          item.setAttribute('aria-disabled', 'true');
+          item.setAttribute('tabindex', '-1');
+          item.removeAttribute('onclick');
+        });
+      });
+    }
+
     /* EVALUACIÓN COMPLETA Y CÁLCULO DE NOTA */
     function evaluarYEnviarExamen() {
+      if (examenBloqueado) return;
       // 1. Validar que todas las preguntas e ítems estén respondidos
       let faltantes = 0;
 
@@ -995,11 +1037,13 @@ const usuarioActual = localStorage.getItem('usuario') || 'Desconocido';
       `;
       banner.style.display = 'block';
       banner.scrollIntoView({ behavior: 'smooth' });
-document.getElementById('seccionPreguntas').style.pointerEvents = 'none';
-      // Desactivar el botón de envío
+      bloquearEvaluacionDespuesDeEnviar();
+
+      // Desactivar el botón de envío y dejarlo como confirmación visual.
       const btnEnviar = document.querySelector('.btn-enviar-examen');
       if (btnEnviar) {
         btnEnviar.disabled = true;
+        btnEnviar.setAttribute('aria-disabled', 'true');
         btnEnviar.style.opacity = '0.6';
         btnEnviar.style.cursor = 'not-allowed';
         btnEnviar.innerText = 'Examen Evaluado ✅';

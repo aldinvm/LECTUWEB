@@ -416,19 +416,24 @@ async function cargarDatos() {
     if (dot) setThemeColor(data.lectura.color, dot);
   }
 
-  let todosLosBloques = [];
+  let preguntasDisponibles = data.preguntas && data.preguntas.length > 0 ? [...data.preguntas] : [];
 
-  // 1. Extraer bloques de contenido (textos e imágenes)
   if (data.lectura.contenido) {
     try {
       const bloques = JSON.parse(data.lectura.contenido);
+      
       if (Array.isArray(bloques)) {
-        bloques.forEach((b, index) => {
-          todosLosBloques.push({
-            esPregunta: false,
-            orden: b.orden !== undefined ? b.orden : index, // Compatibilidad con guardados anteriores
-            data: b
-          });
+        bloques.forEach((b) => {
+          if (b.tipo === 'placeholder_pregunta') {
+            if (preguntasDisponibles.length > 0) {
+              const p = preguntasDisponibles.shift();
+              renderizarPregunta(p);
+            }
+          } else if (b.tipo === 'mixto') {
+            agregarBloqueMixto(b.texto, b.imagen, b.posicion || 'derecha', b.tamano || 'mediana');
+          } else {
+            agregarBloqueTexto(b.texto || b);
+          }
         });
       } else {
         agregarBloqueTexto(data.lectura.contenido);
@@ -438,42 +443,21 @@ async function cargarDatos() {
     }
   }
 
-  // 2. Extraer bloques de preguntas
-  if (data.preguntas && data.preguntas.length > 0) {
-    data.preguntas.forEach((p, index) => {
-      todosLosBloques.push({
-        esPregunta: true,
-        orden: p.orden !== undefined ? p.orden : 9999 + index, // Si es viejo, van al final
-        data: p
-      });
+  preguntasDisponibles.forEach(p => {
+    renderizarPregunta(p);
+  });
+
+  function renderizarPregunta(p) {
+    let datosParseados = p.datos;
+    try { datosParseados = JSON.parse(p.datos); } catch(e){}
+    
+    agregarBloquePregunta({
+      tipo: p.tipo,
+      enunciado: p.enunciado,
+      datos: datosParseados,
+      respuesta_correcta: p.respuesta_correcta
     });
   }
-
-  // 3. Ordenar absolutamente todo por su número de "orden"
-  todosLosBloques.sort((a, b) => a.orden - b.orden);
-
-  // 4. Renderizar en la pantalla en el orden correcto
-  todosLosBloques.forEach(item => {
-    if (!item.esPregunta) {
-      const b = item.data;
-      if (b.tipo === 'mixto') {
-        agregarBloqueMixto(b.texto, b.imagen, b.posicion || 'derecha', b.tamano || 'mediana');
-      } else {
-        agregarBloqueTexto(b.texto || b);
-      }
-    } else {
-      const p = item.data;
-      let datosParseados = p.datos;
-      try { datosParseados = JSON.parse(p.datos); } catch(e){}
-      
-      agregarBloquePregunta({
-        tipo: p.tipo,
-        enunciado: p.enunciado,
-        datos: datosParseados,
-        respuesta_correcta: p.respuesta_correcta
-      });
-    }
-  });
 }
 
 /* 1. Bloque Solo Texto */
@@ -1007,7 +991,7 @@ function abrirVistaPrevia() {
       conceptoSeleccionado = null;
     }
 
-/* Guardar Lección (Mantiene el Orden Intercalado) */
+/* Guardar Lección (Mantiene el Orden Intercalado mediante Marcadores) */
 async function guardarLeccion() {
   const titulo = document.getElementById('tituloLeccion').value;
   const elementos = document.querySelectorAll('#canvas .block');
@@ -1029,6 +1013,9 @@ async function guardarLeccion() {
         bloquesContenido.push({ orden: index, tipo: 'texto', texto });
       }
     } else if (card.classList.contains('bloque-pregunta')) {
+      // Marcador para registrar dónde iba posicionada la pregunta
+      bloquesContenido.push({ orden: index, tipo: 'placeholder_pregunta' });
+
       const id = card.dataset.id;
       const tipo = card.querySelector('.tipo-select').value;
       const enunciado = card.querySelector('.enunciado').value;
@@ -1066,7 +1053,7 @@ async function guardarLeccion() {
         });
         datos = parejas.join(', ');
       }
-      preguntas.push({ orden: index, tipo, enunciado, datos, respuesta_correcta, puntos });
+      preguntas.push({ tipo, enunciado, datos, respuesta_correcta, puntos });
     }
   });
 

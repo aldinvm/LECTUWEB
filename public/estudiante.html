@@ -406,7 +406,7 @@ try {
             }
             
             // --- FUNCIÓN PARA CREAR EL HTML DE UNA PREGUNTA ---
-            function generarHTMLPregunta(p, idx) {
+            function generarHTMLPregunta(p, idx, numeroPregunta) {
               let datosParseados = p.datos;
               try { datosParseados = JSON.parse(p.datos); } catch(e){}
 
@@ -420,7 +420,7 @@ try {
 
               // Le damos márgenes amplios para que se note separada del texto de lectura
               let html = `<div class="pregunta-card" id="q_card_${idx}" data-idx="${idx}" data-tipo="${p.tipo}" style="margin: 40px 0; border: 2px dashed #CBD5E1;">`;
-              html += `<p style="font-weight:bold; font-size:17px; margin-top:0;">${idx + 1}. ${p.enunciado} <span style="color:var(--primary); font-size:14px;">(${pts} ${pts === 1 ? 'pt' : 'pts'})</span></p>`;
+              html += `<p style="font-weight:bold; font-size:17px; margin-top:0;">${numeroPregunta}. ${p.enunciado} <span style="color:var(--primary); font-size:14px;">(${pts} ${pts === 1 ? 'pt' : 'pts'})</span></p>`;
 
               if (p.tipo === 'multiple') {
                 const opciones = Array.isArray(datosParseados) ? datosParseados : [];
@@ -496,50 +496,67 @@ try {
               return html;
             }
 
-            // --- RENDERIZAR BLOQUES (INTERCALANDO TEXTO Y PREGUNTAS) ---
+            // --- RENDERIZAR BLOQUES EN EL MISMO ORDEN DEL EDITOR ---
             let htmlContenido = '';
+            let numeroPreguntaEnTexto = 0;
+
             try {
               const bloques = JSON.parse(leccion.contenido);
-              bloques.forEach(b => {
-                
-                // Si encontramos un marcador de pregunta, la insertamos aquí mismo
-                if (b.tipo === 'placeholder_pregunta') {
-                  if (preguntasDisponibles.length > 0) {
-                    const p = preguntasDisponibles.shift();
-                    htmlContenido += generarHTMLPregunta(p, preguntaIndex);
-                    preguntaIndex++;
-                  }
-                } else {
-                  // Es un bloque de texto o mixto normal
-                  const textoFormateado = (b.texto || '').replace(/\n/g, '<br>');
 
-                  if (b.tipo === 'mixto') {
-                    let pxWidth = '300px';
-                    if (b.tamano === 'pequena') pxWidth = '200px';
-                    if (b.tamano === 'grande') pxWidth = '420px';
-                    if (b.tamano === 'full' || b.posicion === 'arriba') pxWidth = '100%';
+              if (Array.isArray(bloques)) {
+                bloques.forEach(b => {
 
-                    let floatStyle = '';
-                    if (b.posicion === 'derecha') {
-                      floatStyle = `float: right; margin-left: 20px; margin-bottom: 15px; width: ${pxWidth};`;
-                    } else if (b.posicion === 'izquierda') {
-                      floatStyle = `float: left; margin-right: 20px; margin-bottom: 15px; width: ${pxWidth};`;
+                  // Cada nuevo texto comienza una nueva sección y reinicia su numeración.
+                  if (b.tipo === 'texto' || b.tipo === 'mixto') {
+                    numeroPreguntaEnTexto = 0;
+
+                    const textoFormateado = (b.texto || '').replace(/\n/g, '<br>');
+                    const tituloBloque = (b.titulo || '').trim();
+
+                    if (b.tipo === 'mixto') {
+                      let pxWidth = '300px';
+                      if (b.tamano === 'pequena') pxWidth = '200px';
+                      if (b.tamano === 'grande') pxWidth = '420px';
+                      if (b.tamano === 'full' || b.posicion === 'arriba') pxWidth = '100%';
+
+                      let floatStyle = '';
+                      if (b.posicion === 'derecha') {
+                        floatStyle = `float: right; margin-left: 20px; margin-bottom: 15px; width: ${pxWidth};`;
+                      } else if (b.posicion === 'izquierda') {
+                        floatStyle = `float: left; margin-right: 20px; margin-bottom: 15px; width: ${pxWidth};`;
+                      } else {
+                        floatStyle = `display: block; margin: 0 auto 15px auto; width: ${pxWidth};`;
+                      }
+
+                      htmlContenido += `
+                        <div style="margin-bottom: 25px; width: 100%;" class="clearfix">
+                          ${tituloBloque ? `<h2 style="color:var(--primary); margin:0 0 12px 0; font-size:22px; font-weight:800;">${tituloBloque}</h2>` : ''}
+                          ${b.imagen ? `<img src="${b.imagen}" style="max-height:450px; object-fit:cover; border-radius:10px; box-shadow:0 3px 8px rgba(0,0,0,0.1); ${floatStyle}">` : ''}
+                          <div style="font-size:16px; line-height:1.7; color:#2D3436; text-align:justify;">${textoFormateado}</div>
+                          <div style="clear:both;"></div>
+                        </div>
+                      `;
                     } else {
-                      floatStyle = `display: block; margin: 0 auto 15px auto; width: ${pxWidth};`;
+                      htmlContenido += `
+                        <div style="margin-bottom:20px;">
+                          ${tituloBloque ? `<h2 style="color:var(--primary); margin:0 0 10px 0; font-size:22px; font-weight:800;">${tituloBloque}</h2>` : ''}
+                          <div style="font-size:16px; line-height:1.7; color:#2D3436; text-align:justify;">${textoFormateado}</div>
+                        </div>
+                      `;
                     }
 
-                    htmlContenido += `
-                      <div style="margin-bottom: 25px; width: 100%;" class="clearfix">
-                        ${b.imagen ? `<img src="${b.imagen}" style="max-height:450px; object-fit:cover; border-radius:10px; box-shadow:0 3px 8px rgba(0,0,0,0.1); ${floatStyle}">` : ''}
-                        <div style="font-size:16px; line-height:1.7; color:#2D3436; text-align:justify;">${textoFormateado}</div>
-                        <div style="clear:both;"></div>
-                      </div>
-                    `;
-                  } else {
-                    htmlContenido += `<div style="font-size:16px; line-height:1.7; color:#2D3436; margin-bottom:20px; text-align:justify;">${textoFormateado}</div>`;
+                  } else if (b.tipo === 'placeholder_pregunta') {
+                    if (preguntasDisponibles.length > 0) {
+                      const p = preguntasDisponibles.shift();
+                      numeroPreguntaEnTexto++;
+                      htmlContenido += generarHTMLPregunta(p, preguntaIndex, numeroPreguntaEnTexto);
+                      preguntaIndex++;
+                    }
                   }
-                }
-              });
+                });
+              } else {
+                htmlContenido = `<div style="font-size:16px; line-height:1.7; color:#2D3436;">${(leccion.contenido || '').replace(/\n/g, '<br>')}</div>`;
+              }
             } catch(e) {
               htmlContenido = `<div style="font-size:16px; line-height:1.7; color:#2D3436;">${(leccion.contenido || '').replace(/\n/g, '<br>')}</div>`;
             }
@@ -547,7 +564,8 @@ try {
             // Si quedaron preguntas huérfanas, las ponemos al final
             while(preguntasDisponibles.length > 0) {
               const p = preguntasDisponibles.shift();
-              htmlContenido += generarHTMLPregunta(p, preguntaIndex);
+              numeroPreguntaEnTexto++;
+              htmlContenido += generarHTMLPregunta(p, preguntaIndex, numeroPreguntaEnTexto);
               preguntaIndex++;
             }
             

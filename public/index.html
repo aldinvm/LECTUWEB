@@ -7,122 +7,344 @@
   <link rel="icon" type="image/png" href="favicon.png">
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+
+    :root {
+      --primary: #6C5CE7;
+      --primary-dark: #5848C2;
+      --text: #253047;
+      --muted: #6B7280;
+    }
+
     body {
-      background: linear-gradient(135deg, #a8edd9 0%, #fed6e3 100%);
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 12% 10%, rgba(255,255,255,.75), transparent 28%),
+        linear-gradient(135deg, #a8edd9 0%, #dceeff 48%, #fed6e3 100%);
+      color: var(--text);
+    }
+
+    .page {
       min-height: 100vh;
       display: flex;
-      justify-content: center;
       align-items: center;
-      margin: 0;
+      justify-content: center;
+      padding: 32px 18px;
     }
-    .card-login {
-      background: white;
-      padding: 40px;
-      border-radius: 24px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+
+    .selector {
       width: 100%;
-      max-width: 380px;
+      max-width: 760px;
+      background: rgba(255,255,255,.94);
+      border-radius: 30px;
+      box-shadow: 0 18px 55px rgba(40,45,80,.14);
+      padding: 42px 38px 34px;
       text-align: center;
     }
-    h1 { color: #6C5CE7; font-size: 26px; margin-bottom: 8px; }
-    p { color: #636E72; font-size: 14px; margin-bottom: 25px; }
-    .input-group { margin-bottom: 18px; text-align: left; }
-    label { display: block; margin-bottom: 6px; color: #2D3436; font-weight: 600; font-size: 14px; }
-    input {
-      width: 100%; padding: 12px 16px; border: 2px solid #E0E0E0;
-      border-radius: 12px; font-size: 15px; outline: none;
+
+    .brand {
+      color: var(--primary);
+      font-weight: 900;
+      font-size: 18px;
+      margin-bottom: 10px;
     }
-    input:focus { border-color: #6C5CE7; }
-    button {
-      width: 100%; padding: 14px; background: #6C5CE7; color: white;
-      border: none; border-radius: 12px; font-size: 16px; font-weight: bold;
-      cursor: pointer; margin-top: 10px;
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 34px;
+      color: #202A3E;
     }
-    button:hover { background: #5B4BC4; }
-    .error-msg { color: #FF7675; margin-top: 15px; font-size: 14px; display: none; }
-    
-    /* Estilos para el botón de ver contraseña */
-    .caja-password { position: relative; }
-    .btn-ver {
-      position: absolute; right: 12px; top: 12px; cursor: pointer; 
-      color: #6C5CE7; font-weight: bold; font-size: 14px; user-select: none;
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 17px;
+      margin-bottom: 31px;
+    }
+
+    .profiles {
+      display: flex;
+      justify-content: center;
+    }
+
+    .profile {
+      width: min(310px, 100%);
+      background: white;
+      border: 3px solid transparent;
+      border-radius: 25px;
+      padding: 28px 22px;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(0,0,0,.07);
+      transition: transform .2s, border-color .2s, box-shadow .2s;
+    }
+
+    .profile:hover,
+    .profile:focus-visible {
+      transform: translateY(-6px);
+      border-color: #C4B5FD;
+      box-shadow: 0 14px 30px rgba(108,92,231,.17);
+      outline: none;
+    }
+
+    .avatar {
+      width: 112px;
+      height: 112px;
+      border-radius: 30px;
+      margin: 0 auto 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 59px;
+      background: linear-gradient(135deg, #DDD6FE, #FCE7F3);
+    }
+
+    .profile h2 {
+      margin: 0 0 6px;
+      font-size: 25px;
+    }
+
+    .profile p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .admin-area {
+      border-top: 1px solid #E5E7EB;
+      margin-top: 34px;
+      padding-top: 23px;
+    }
+
+    .admin-btn {
+      border: 1px solid #D4D8E1;
+      background: #F8FAFC;
+      color: #4B5563;
+      border-radius: 13px;
+      padding: 12px 20px;
+      cursor: pointer;
+      font-weight: 800;
+      font-size: 15px;
+    }
+
+    .admin-btn:hover {
+      background: #EEF2FF;
+      color: var(--primary);
+      border-color: #C7D2FE;
+    }
+
+    .private-note {
+      margin-top: 17px;
+      color: #94A3B8;
+      font-size: 12px;
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      background: rgba(15,23,42,.48);
+    }
+
+    .modal.show { display: flex; }
+
+    .modal-card {
+      width: 100%;
+      max-width: 400px;
+      background: white;
+      border-radius: 23px;
+      padding: 28px;
+      box-shadow: 0 24px 65px rgba(0,0,0,.22);
+      text-align: left;
+    }
+
+    .modal-card h2 {
+      margin: 0 0 6px;
+      color: #202A3E;
+    }
+
+    .modal-card > p {
+      margin: 0 0 19px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .password-box { position: relative; }
+
+    .password-box input {
+      width: 100%;
+      padding: 14px 70px 14px 14px;
+      border: 2px solid #E2E8F0;
+      border-radius: 12px;
+      font-size: 16px;
+      outline: none;
+    }
+
+    .password-box input:focus { border-color: var(--primary); }
+
+    .toggle-pass {
+      position: absolute;
+      top: 50%;
+      right: 13px;
+      transform: translateY(-50%);
+      color: var(--primary);
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .error {
+      min-height: 21px;
+      margin-top: 9px;
+      color: #EF4444;
+      font-size: 13px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 5px;
+    }
+
+    .modal-actions button {
+      flex: 1;
+      border: none;
+      border-radius: 11px;
+      padding: 12px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .cancel { background: #E5E7EB; color: #475569; }
+    .enter { background: var(--primary); color: white; }
+    .enter:hover { background: var(--primary-dark); }
+
+    @media (max-width: 600px) {
+      .selector { padding: 32px 18px 27px; }
+      h1 { font-size: 27px; }
+      .subtitle { font-size: 15px; }
+      .avatar { width: 96px; height: 96px; font-size: 51px; }
     }
   </style>
 </head>
 <body>
 
-  <div class="card-login">
-    <h1>¡Bienvenido/a! 📖</h1>
-    <p>Ingresa tus datos para empezar a leer</p>
+  <main class="page">
+    <section class="selector">
+      <div class="brand">📚 AULA DE LECTURA</div>
+      <h1>¿Quién va a aprender hoy?</h1>
+      <div class="subtitle">Elige tu perfil para comenzar</div>
 
-    <form id="formLogin">
-      <div class="input-group">
-        <label for="username">Usuario</label>
-        <input type="text" id="username" placeholder="Tu usuario" required>
-      </div>
-
-      <div class="input-group">
-        <label for="password">Contraseña</label>
-        <div class="caja-password">
-          <input type="password" id="password" placeholder="••••••••" required style="padding-right: 50px;">
-          <span id="btnVerContrasena" class="btn-ver">Ver</span>
+      <div class="profiles">
+        <div class="profile" tabindex="0"
+             onclick="entrarComoYarlet()"
+             onkeydown="if(event.key==='Enter' || event.key===' ') entrarComoYarlet()">
+          <div class="avatar">👧</div>
+          <h2>Yarlet</h2>
+          <p>Mis lecciones de lectura</p>
         </div>
       </div>
 
-      <button type="submit">Entrar</button>
-      <div id="errorMsg" class="error-msg">Usuario o contraseña incorrectos</div>
-    </form>
+      <div class="admin-area">
+        <button class="admin-btn" onclick="abrirAdmin()">🔐 Administrador</button>
+      </div>
+
+      <div class="private-note">Acceso privado · El perfil de estudiante no necesita contraseña</div>
+    </section>
+  </main>
+
+  <div id="modalAdmin" class="modal" onclick="cerrarDesdeFondo(event)">
+    <div class="modal-card">
+      <h2>🔐 Administrador</h2>
+      <p>Ingresa tu contraseña para continuar.</p>
+
+      <form id="formAdmin">
+        <div class="password-box">
+          <input type="password" id="adminPassword" placeholder="Contraseña" autocomplete="current-password" required>
+          <span id="togglePassword" class="toggle-pass">Ver</span>
+        </div>
+
+        <div id="adminError" class="error"></div>
+
+        <div class="modal-actions">
+          <button type="button" class="cancel" onclick="cerrarAdmin()">Cancelar</button>
+          <button type="submit" class="enter">Entrar</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <script>
-    // Lógica para mostrar/ocultar contraseña
-    const btnVer = document.getElementById('btnVerContrasena');
-    const inputPassword = document.getElementById('password');
-    
-    btnVer.addEventListener('click', () => {
-      if (inputPassword.type === 'password') {
-        inputPassword.type = 'text';
-        btnVer.textContent = 'Ocultar';
+    function entrarComoYarlet() {
+      localStorage.setItem('usuario', 'Yarlet');
+      localStorage.setItem('rol', 'estudiante');
+      window.location.href = 'estudiante.html';
+    }
+
+    function abrirAdmin() {
+      const modal = document.getElementById('modalAdmin');
+      const password = document.getElementById('adminPassword');
+      document.getElementById('adminError').textContent = '';
+      password.value = '';
+      password.type = 'password';
+      document.getElementById('togglePassword').textContent = 'Ver';
+      modal.classList.add('show');
+      setTimeout(() => password.focus(), 80);
+    }
+
+    function cerrarAdmin() {
+      document.getElementById('modalAdmin').classList.remove('show');
+    }
+
+    function cerrarDesdeFondo(event) {
+      if (event.target.id === 'modalAdmin') cerrarAdmin();
+    }
+
+    document.getElementById('togglePassword').addEventListener('click', () => {
+      const input = document.getElementById('adminPassword');
+      const toggle = document.getElementById('togglePassword');
+
+      if (input.type === 'password') {
+        input.type = 'text';
+        toggle.textContent = 'Ocultar';
       } else {
-        inputPassword.type = 'password';
-        btnVer.textContent = 'Ver';
+        input.type = 'password';
+        toggle.textContent = 'Ver';
       }
     });
 
-    // Lógica de inicio de sesión
-    document.getElementById('formLogin').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      const username = document.getElementById('username').value;
-      const password = document.getElementById('password').value;
-      const errorMsg = document.getElementById('errorMsg');
+    document.getElementById('formAdmin').addEventListener('submit', async (event) => {
+      event.preventDefault();
 
-      errorMsg.style.display = 'none';
+      const password = document.getElementById('adminPassword').value;
+      const error = document.getElementById('adminError');
+      error.textContent = '';
 
       try {
         const respuesta = await fetch('/api/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password })
+          body: JSON.stringify({
+            username: 'Administrador',
+            password
+          })
         });
 
         const data = await respuesta.json();
 
-        if (respuesta.ok) {
-          // Solución al problema del nombre "Desconocido"
-          localStorage.setItem('usuario', data.username);
-          
-          if (data.rol === 'admin') {
-            window.location.href = '/admin.html';
-          } else {
-            window.location.href = '/estudiante.html';
-          }
-        } else {
-          errorMsg.style.display = 'block';
+        if (!respuesta.ok || data.rol !== 'admin') {
+          error.textContent = 'Contraseña incorrecta';
+          return;
         }
+
+        localStorage.setItem('usuario', data.username || 'Administrador');
+        localStorage.setItem('rol', 'admin');
+        window.location.href = 'admin.html';
       } catch (err) {
-        errorMsg.textContent = 'Error al conectar con el servidor';
-        errorMsg.style.display = 'block';
+        error.textContent = 'Error al conectar con el servidor';
       }
     });
   </script>

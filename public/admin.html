@@ -140,6 +140,21 @@
     }
 
     .btn-eliminar:hover { background: #b71c1c; }
+
+    .btn-despublicar {
+      background: #F59E0B;
+      color: white;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-weight: bold;
+      cursor: pointer;
+      text-align: center;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+
+    .btn-despublicar:hover { background: #D97706; }
   .btn-resultados {
       background: var(--accent); color: white; border: none; padding: 12px 24px;
       border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 16px; margin-left: 10px;
@@ -203,6 +218,9 @@
               </span>
               <div class="acciones-card">
                 <button class="btn-abrir" onclick="abrirLeccion(${lec.id})">📝 Editar</button>
+                ${lec.estado === 'publicada'
+                  ? `<button class="btn-despublicar" onclick="despublicarLeccion(${lec.id}, event)">📥 Despublicar</button>`
+                  : ''}
                 <button class="btn-eliminar" onclick="eliminarLeccion(${lec.id})">🗑️</button>
               </div>
             </div>
@@ -211,6 +229,33 @@
       } catch (e) {
         console.error(e);
         document.getElementById('gridLecciones').innerHTML = `<p style="color: #2D3436; font-weight: bold; background: rgba(255,255,255,0.8); padding: 10px; border-radius: 8px;">Error al cargar las lecciones.</p>`;
+      }
+    }
+
+    async function despublicarLeccion(id, event) {
+      if (event) event.stopPropagation();
+
+      if (!confirm('¿Deseas despublicar esta lección? Los estudiantes dejarán de verla, pero no se borrará.')) {
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/clases/' + id + '/estado', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ estado: 'borrador' })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          alert(data.error || 'No se pudo despublicar la lección.');
+          return;
+        }
+
+        await cargarLecciones();
+      } catch (e) {
+        alert('No se pudo conectar con el servidor.');
       }
     }
 
@@ -249,7 +294,9 @@
     }
 
     function cerrarSesion() {
-      window.location.href = 'index.html'; 
+      localStorage.removeItem('usuario');
+      localStorage.removeItem('rol');
+      window.location.href = 'index.html';
     }
 
 async function toggleResultados() {

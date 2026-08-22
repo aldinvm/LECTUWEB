@@ -14,14 +14,15 @@ app.post('/api/login', (req, res) => {
   });
 });
 
-// Obtener lecciones y verificar si el usuario ya las completó
+// Obtener lecciones (oculta lecciones sin guardar a los estudiantes)
 app.get('/api/clases', (req, res) => {
   const usuario = req.query.usuario || 'Desconocido';
-  const query = `
-    SELECT l.*, 
-    (SELECT COUNT(*) FROM resultados r WHERE r.lectura_id = l.id AND r.usuario = ?) as completada
-    FROM lecturas l
-  `;
+  const esAdmin = req.query.admin === 'true';
+
+  const query = esAdmin 
+    ? `SELECT l.*, (SELECT COUNT(*) FROM resultados r WHERE r.lectura_id = l.id AND r.usuario = ?) as completada FROM lecturas l`
+    : `SELECT l.*, (SELECT COUNT(*) FROM resultados r WHERE r.lectura_id = l.id AND r.usuario = ?) as completada FROM lecturas l WHERE l.contenido IS NOT NULL AND l.contenido != '' AND l.contenido != '[]'`;
+
   db.all(query, [usuario], (err, rows) => {
     if (err) return res.status(500).json({ error: 'Error al obtener clases' });
     res.json(rows);

@@ -107,7 +107,20 @@
       background: linear-gradient(90deg, var(--primary), var(--accent));
     }
 
-    .leccion-titulo { font-size: 19px; font-weight: bold; color: var(--text-dark); margin: 5px 0 15px 0; }
+    .leccion-titulo { font-size: 19px; font-weight: bold; color: var(--text-dark); margin: 5px 0 10px 0; }
+
+    .estado-badge {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      padding: 5px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 18px;
+    }
+    .estado-borrador { background: #FEF3C7; color: #92400E; }
+    .estado-publicada { background: #D1FAE5; color: #065F46; }
 
     .acciones-card {
       display: flex;
@@ -170,7 +183,7 @@
   <script>
     async function cargarLecciones() {
       try {
-        const res = await fetch('/api/clases');
+        const res = await fetch('/api/clases?admin=true');
         const clases = await res.json();
         const grid = document.getElementById('gridLecciones');
 
@@ -185,6 +198,9 @@
           grid.innerHTML += `
             <div class="leccion-card">
               <h3 class="leccion-titulo">${lec.titulo}</h3>
+              <span class="estado-badge ${lec.estado === 'publicada' ? 'estado-publicada' : 'estado-borrador'}">
+                ${lec.estado === 'publicada' ? '● Publicada' : '● Borrador'}
+              </span>
               <div class="acciones-card">
                 <button class="btn-abrir" onclick="abrirLeccion(${lec.id})">📝 Editar</button>
                 <button class="btn-eliminar" onclick="eliminarLeccion(${lec.id})">🗑️</button>

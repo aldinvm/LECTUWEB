@@ -29,7 +29,7 @@
       content: '';
       position: fixed;
       top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(255, 255, 255, 0.25);
+      background: rgba(17, 24, 39, 0.24);
       pointer-events: none;
       z-index: 0;
     }
@@ -120,7 +120,7 @@
     }
 
     .lesson-paper {
-      background: rgba(255, 255, 255, 0.95);
+      background: rgba(248, 248, 246, 0.97);
       backdrop-filter: blur(12px);
       border-radius: 16px;
       padding: 40px;
@@ -356,16 +356,102 @@
   <nav class="navbar">
     <div class="navbar-brand" id="navBrand">📖 Aula de Lectura</div>
 <div style="display: flex; gap: 10px; align-items: center;">
-  <div style="background: rgba(255,255,255,0.85); padding: 4px 8px; border-radius: 8px; border: 1px solid #CBD5E1; display: flex; gap: 4px;">
-    <button onclick="cambiarTamanoTexto(1)" style="border:none; background:white; font-weight:bold; cursor:pointer; font-size:15px; padding:4px 10px; border-radius:6px; box-shadow:0 1px 3px rgba(0,0,0,0.1);" title="Aumentar letra">A+</button>
-    <button onclick="cambiarTamanoTexto(-1)" style="border:none; background:white; font-weight:bold; cursor:pointer; font-size:15px; padding:4px 10px; border-radius:6px; box-shadow:0 1px 3px rgba(0,0,0,0.1);" title="Reducir letra">A-</button>
-  </div>
   <div id="navButton"></div>
 </div>  </nav>
 
   <div class="container" id="appContainer"></div>
 
   <script>
+    const FUENTES_LECTURA = ['Segoe UI', 'Arial', 'Calibri', 'Cambria', 'Georgia', 'Times New Roman', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Garamond', 'Palatino Linotype', 'Book Antiqua', 'Century Gothic', 'Courier New', 'Arial Black', 'Impact', 'Lucida Sans Unicode', 'Comic Sans MS'];
+
+    function normalizarEstiloLectura(estilo = {}, tipo = 'texto') {
+      const defaults = tipo === 'titulo'
+        ? { fuente: 'Georgia', tamano: 22 }
+        : tipo === 'pregunta'
+          ? { fuente: 'Segoe UI', tamano: 17 }
+          : { fuente: 'Segoe UI', tamano: 16 };
+      return {
+        fuente: FUENTES_LECTURA.includes(estilo.fuente) ? estilo.fuente : defaults.fuente,
+        tamano: Number(estilo.tamano) || defaults.tamano
+      };
+    }
+
+    function familiaCssLectura(fuente) {
+      const serif = ['Cambria', 'Georgia', 'Times New Roman', 'Garamond', 'Palatino Linotype', 'Book Antiqua'];
+      const monospace = ['Courier New'];
+      if (serif.includes(fuente)) return `'${fuente}', serif`;
+      if (monospace.includes(fuente)) return `'${fuente}', monospace`;
+      return `'${fuente}', sans-serif`;
+    }
+
+    function estiloInlineLectura(estilo, tipo = 'texto') {
+      const e = normalizarEstiloLectura(estilo, tipo);
+      return `font-family:${familiaCssLectura(e.fuente)}; font-size:${e.tamano}px;`;
+    }
+
+    function escaparHTMLLectura(texto = '') {
+      return String(texto)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function sanitizarHTMLLectura(html = '') {
+      const origen = document.createElement('div');
+      origen.innerHTML = String(html || '');
+
+      function limpiar(nodo) {
+        if (nodo.nodeType === Node.TEXT_NODE) return document.createTextNode(nodo.nodeValue || '');
+        if (nodo.nodeType !== Node.ELEMENT_NODE) return document.createDocumentFragment();
+        const tag = nodo.tagName.toUpperCase();
+        if (tag === 'BR') return document.createElement('br');
+
+        const frag = document.createDocumentFragment();
+        Array.from(nodo.childNodes).forEach(h => frag.appendChild(limpiar(h)));
+
+        if (tag === 'B' || tag === 'STRONG') {
+          const strong = document.createElement('strong');
+          strong.appendChild(frag);
+          return strong;
+        }
+        if (tag === 'I' || tag === 'EM') {
+          const em = document.createElement('em');
+          em.appendChild(frag);
+          return em;
+        }
+        if (tag === 'SPAN') {
+          const span = document.createElement('span');
+          const peso = (nodo.style.fontWeight || '').toLowerCase();
+          const cursiva = (nodo.style.fontStyle || '').toLowerCase();
+          if (peso === 'normal' || peso === 'bold' || /^[1-9]00$/.test(peso)) span.style.fontWeight = peso;
+          if (cursiva === 'normal' || cursiva === 'italic') span.style.fontStyle = cursiva;
+          span.appendChild(frag);
+          return (span.getAttribute('style') || '').trim() ? span : frag;
+        }
+        if (tag === 'DIV' || tag === 'P') {
+          const wrap = document.createDocumentFragment();
+          wrap.appendChild(frag);
+          wrap.appendChild(document.createElement('br'));
+          return wrap;
+        }
+        return frag;
+      }
+
+      const salida = document.createElement('div');
+      Array.from(origen.childNodes).forEach(n => salida.appendChild(limpiar(n)));
+      let limpio = salida.innerHTML.replace(/(?:<br>\s*){3,}/g, '<br><br>');
+      limpio = limpio.replace(/(?:<br>)+$/g, '');
+      return limpio;
+    }
+
+    function valorGuardadoAHTMLLectura(valor = '') {
+      const texto = String(valor || '');
+      if (/<\/?(?:strong|b|em|i|span|br)\b/i.test(texto)) return sanitizarHTMLLectura(texto);
+      return escaparHTMLLectura(texto).replace(/\r?\n/g, '<br>');
+    }
+
     const urlParams = new URLSearchParams(window.location.search);
     const idLeccion = urlParams.get('id');
     const container = document.getElementById('appContainer');
@@ -381,7 +467,7 @@
         
         container.innerHTML = `
           <div class="lesson-paper">
-            <h1 class="lesson-title" id="tituloLeccion" style="color: #6C5CE7; font-size: 28px; font-weight: 800; border-bottom: 2px solid #6C5CE7; padding-bottom: 12px; margin-bottom: 25px;">Cargando...</h1>
+            <h1 class="lesson-title" id="tituloLeccion" style="color: var(--primary); font-size: 28px; font-weight: 800; border-bottom: 2px solid var(--primary); padding-bottom: 12px; margin-bottom: 25px;">Cargando...</h1>
             <div id="contenidoLeccion"></div>
             <div id="seccionPreguntas" style="margin-top: 40px;"></div>
             <div id="bannerResultado" class="score-banner"></div>
@@ -406,7 +492,7 @@ try {
             }
             
             // --- FUNCIÓN PARA CREAR EL HTML DE UNA PREGUNTA ---
-            function generarHTMLPregunta(p, idx, numeroPregunta) {
+            function generarHTMLPregunta(p, idx, numeroPregunta, estiloPregunta = {}) {
               let datosParseados = p.datos;
               try { datosParseados = JSON.parse(p.datos); } catch(e){}
 
@@ -418,9 +504,12 @@ try {
                 pts = parejas.length || 1;
               }
 
+              const cssPregunta = estiloInlineLectura(estiloPregunta, 'pregunta');
+              const enunciadoSeguro = valorGuardadoAHTMLLectura(p.enunciado || '');
+
               // Le damos márgenes amplios para que se note separada del texto de lectura
               let html = `<div class="pregunta-card" id="q_card_${idx}" data-idx="${idx}" data-tipo="${p.tipo}" style="margin: 40px 0; border: 2px dashed #CBD5E1;">`;
-              html += `<p style="font-weight:bold; font-size:17px; margin-top:0;">${numeroPregunta}. ${p.enunciado} <span style="color:var(--primary); font-size:14px;">(${pts} ${pts === 1 ? 'pt' : 'pts'})</span></p>`;
+              html += `<p style="${cssPregunta} color:#111827; font-weight:700; margin-top:0;">${numeroPregunta}. ${enunciadoSeguro} <span style="color:var(--primary); font-size:14px;">(${pts} ${pts === 1 ? 'pt' : 'pts'})</span></p>`;
 
               if (p.tipo === 'multiple') {
                 const opciones = Array.isArray(datosParseados) ? datosParseados : [];
@@ -499,19 +588,25 @@ try {
             // --- RENDERIZAR BLOQUES EN EL MISMO ORDEN DEL EDITOR ---
             let htmlContenido = '';
             let numeroPreguntaEnTexto = 0;
+            let estiloPreguntaGlobal = {};
 
             try {
               const bloques = JSON.parse(leccion.contenido);
 
               if (Array.isArray(bloques)) {
+                const configFormato = bloques.find(b => b && (b.estiloTexto || b.estiloTitulo || b.estiloPregunta));
+                if (configFormato) estiloPreguntaGlobal = configFormato.estiloPregunta || {};
+
                 bloques.forEach(b => {
 
                   // Cada nuevo texto comienza una nueva sección y reinicia su numeración.
                   if (b.tipo === 'texto' || b.tipo === 'mixto') {
                     numeroPreguntaEnTexto = 0;
 
-                    const textoFormateado = (b.texto || '').replace(/\n/g, '<br>');
-                    const tituloBloque = (b.titulo || '').trim();
+                    const textoFormateado = valorGuardadoAHTMLLectura(b.texto || '');
+                    const tituloBloque = valorGuardadoAHTMLLectura(b.titulo || '');
+                    const cssTexto = estiloInlineLectura(b.estiloTexto || configFormato?.estiloTexto || {}, 'texto');
+                    const cssTitulo = estiloInlineLectura(b.estiloTitulo || configFormato?.estiloTitulo || {}, 'titulo');
 
                     if (b.tipo === 'mixto') {
                       let pxWidth = '300px';
@@ -530,17 +625,17 @@ try {
 
                       htmlContenido += `
                         <div style="margin-bottom: 25px; width: 100%;" class="clearfix">
-                          ${tituloBloque ? `<h2 style="color:var(--primary); margin:0 0 12px 0; font-size:22px; font-weight:800;">${tituloBloque}</h2>` : ''}
+                          ${tituloBloque ? `<h2 style="color:#111827; margin:0 0 12px 0; font-weight:700; ${cssTitulo}">${tituloBloque}</h2>` : ''}
                           ${b.imagen ? `<img src="${b.imagen}" style="max-height:450px; object-fit:cover; border-radius:10px; box-shadow:0 3px 8px rgba(0,0,0,0.1); ${floatStyle}">` : ''}
-                          <div style="font-size:16px; line-height:1.7; color:#2D3436; text-align:justify;">${textoFormateado}</div>
+                          <div style="${cssTexto} line-height:1.7; color:#2D3436; text-align:justify;">${textoFormateado}</div>
                           <div style="clear:both;"></div>
                         </div>
                       `;
                     } else {
                       htmlContenido += `
                         <div style="margin-bottom:20px;">
-                          ${tituloBloque ? `<h2 style="color:var(--primary); margin:0 0 10px 0; font-size:22px; font-weight:800;">${tituloBloque}</h2>` : ''}
-                          <div style="font-size:16px; line-height:1.7; color:#2D3436; text-align:justify;">${textoFormateado}</div>
+                          ${tituloBloque ? `<h2 style="color:#111827; margin:0 0 10px 0; font-weight:700; ${cssTitulo}">${tituloBloque}</h2>` : ''}
+                          <div style="${cssTexto} line-height:1.7; color:#2D3436; text-align:justify;">${textoFormateado}</div>
                         </div>
                       `;
                     }
@@ -549,7 +644,7 @@ try {
                     if (preguntasDisponibles.length > 0) {
                       const p = preguntasDisponibles.shift();
                       numeroPreguntaEnTexto++;
-                      htmlContenido += generarHTMLPregunta(p, preguntaIndex, numeroPreguntaEnTexto);
+                      htmlContenido += generarHTMLPregunta(p, preguntaIndex, numeroPreguntaEnTexto, estiloPreguntaGlobal);
                       preguntaIndex++;
                     }
                   }
@@ -565,7 +660,7 @@ try {
             while(preguntasDisponibles.length > 0) {
               const p = preguntasDisponibles.shift();
               numeroPreguntaEnTexto++;
-              htmlContenido += generarHTMLPregunta(p, preguntaIndex, numeroPreguntaEnTexto);
+              htmlContenido += generarHTMLPregunta(p, preguntaIndex, numeroPreguntaEnTexto, estiloPreguntaGlobal);
               preguntaIndex++;
             }
             
@@ -856,23 +951,6 @@ document.getElementById('seccionPreguntas').style.pointerEvents = 'none';
         btnEnviar.innerText = 'Examen Evaluado ✅';
       }
     }
-let tamanoActual = 16;
-
-function cambiarTamanoTexto(delta) {
-  tamanoActual += delta * 2;
-  if (tamanoActual < 12) tamanoActual = 12;
-  if (tamanoActual > 26) tamanoActual = 26;
-
-  // Ajusta las lecturas y párrafos
-  document.querySelectorAll('#contenidoLeccion div, #contenidoLeccion p').forEach(el => {
-    el.style.fontSize = tamanoActual + 'px';
-  });
-
-  // Ajusta preguntas y opciones
-  document.querySelectorAll('.pregunta-card p, .prev-opt-btn, .vf-interactive-row span, .card-ribbon').forEach(el => {
-    el.style.fontSize = (tamanoActual - 1) + 'px';
-  });
-}
     iniciar();
   </script>
 </body>

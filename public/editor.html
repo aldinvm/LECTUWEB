@@ -372,9 +372,9 @@
   <script>
     const urlParams = new URLSearchParams(window.location.search);
     const claseId = urlParams.get('id');
-    let contadorPreguntas = 0;
+let contadorPreguntas = 0;
     let currentColor = '#6C5CE7';
-
+    let bloqueSeleccionado = null;
     /* SISTEMA DE PUNTOS EN VISTA PREVIA */
     let puntajeTotalMaximo = 0;
     let registroPuntajesObtenidos = {};
@@ -478,6 +478,11 @@ async function cargarDatos() {
       document.getElementById('canvas').appendChild(div);
       hacerBloqueArrastrable(div);
       const txtArea = div.querySelector('.txt-contenido');
+      
+      txtArea.addEventListener('focus', () => {
+        bloqueSeleccionado = div;
+      });
+
       setTimeout(() => autoAjustarTexto(txtArea), 50);
     }
 
@@ -533,12 +538,15 @@ async function cargarDatos() {
         </div>
       `;
 
-      document.getElementById('canvas').appendChild(div);
-      hacerBloqueArrastrable(div);
-      const txtArea = div.querySelector('.txt-contenido');
-      setTimeout(() => autoAjustarTexto(txtArea), 50);
-    }
+document.getElementById('canvas').appendChild(div);
+    hacerBloqueArrastrable(div);
+    const txtArea = div.querySelector('.txt-contenido');
 
+    txtArea.addEventListener('focus', () => {
+        bloqueSeleccionado = txtArea;
+    });
+
+    setTimeout(() => autoAjustarTexto(txtArea), 50);
     /* 3. Preguntas de Evaluación */
     function agregarBloquePregunta(datosExistentes = null) {
       contadorPreguntas++;

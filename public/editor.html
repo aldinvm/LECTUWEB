@@ -1045,7 +1045,107 @@ insertarBloqueDebajoSeleccionado(div);
       };
     }
 
-    function subirArchivoImagen(input, imgId) {
+    function comprimirImagenDesdeArchivo(archivo, maxDimension = 1600, calidad = 0.82) {
+      return new Promise((resolve, reject) => {
+        const lector = new FileReader();
+
+        lector.onload = function(e) {
+          // Los GIF se conservan para no perder animaciones.
+          if (archivo.type === 'image/gif') {
+            resolve(e.target.result);
+            return;
+          }
+
+          const imagen = new Image();
+
+          imagen.onload = function() {
+            let ancho = imagen.naturalWidth || imagen.width;
+            let alto = imagen.naturalHeight || imagen.height;
+
+            if (!ancho || !alto) {
+              resolve(e.target.result);
+              return;
+            }
+
+            const escala = Math.min(1, maxDimension / Math.max(ancho, alto));
+            const nuevoAncho = Math.max(1, Math.round(ancho * escala));
+            const nuevoAlto = Math.max(1, Math.round(alto * escala));
+
+            const canvas = document.createElement('canvas');
+            canvas.width = nuevoAncho;
+            canvas.height = nuevoAlto;
+
+            const ctx = canvas.getContext('2d', { alpha: true });
+            if (!ctx) {
+              resolve(e.target.result);
+              return;
+            }
+
+            ctx.drawImage(imagen, 0, 0, nuevoAncho, nuevoAlto);
+
+            // WebP mantiene buena calidad con bastante menos peso.
+            const comprimida = canvas.toDataURL('image/webp', calidad);
+
+            // Nunca sustituimos por una versión más pesada.
+            resolve(comprimida.length < String(e.target.result).length
+              ? comprimida
+              : e.target.result);
+          };
+
+          imagen.onerror = () => resolve(e.target.result);
+          imagen.src = e.target.result;
+        };
+
+        lector.onerror = reject;
+        lector.readAsDataURL(archivo);
+      });
+    }
+
+    function optimizarDataUrlExistente(dataUrl, maxDimension = 1600, calidad = 0.82) {
+      return new Promise((resolve) => {
+        const valor = String(dataUrl || '');
+
+        // URL externa, imagen ya optimizada o GIF: no tocar.
+        if (!valor.startsWith('data:image/') ||
+            valor.startsWith('data:image/webp') ||
+            valor.startsWith('data:image/gif')) {
+          resolve(valor);
+          return;
+        }
+
+        const imagen = new Image();
+
+        imagen.onload = function() {
+          const ancho = imagen.naturalWidth || imagen.width;
+          const alto = imagen.naturalHeight || imagen.height;
+
+          if (!ancho || !alto) {
+            resolve(valor);
+            return;
+          }
+
+          const escala = Math.min(1, maxDimension / Math.max(ancho, alto));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(ancho * escala));
+          canvas.height = Math.max(1, Math.round(alto * escala));
+
+          const ctx = canvas.getContext('2d', { alpha: true });
+          if (!ctx) {
+            resolve(valor);
+            return;
+          }
+
+          ctx.drawImage(imagen, 0, 0, canvas.width, canvas.height);
+          const comprimida = canvas.toDataURL('image/webp', calidad);
+          resolve(comprimida.length < valor.length ? comprimida : valor);
+        };
+
+        imagen.onerror = () => resolve(valor);
+        imagen.src = valor;
+      });
+    }
+
+    async function subirArchivoImagen(input, imgId) {
       const archivo = input.files && input.files[0];
       if (!archivo) return;
 
@@ -1055,9 +1155,15 @@ insertarBloqueDebajoSeleccionado(div);
         return;
       }
 
-      const lector = new FileReader();
+      // Evita cargar accidentalmente archivos extremadamente grandes en memoria.
+      if (archivo.size > 15 * 1024 * 1024) {
+        alert('La imagen es demasiado pesada. Usa una imagen menor de 15 MB.');
+        input.value = '';
+        return;
+      }
 
-      lector.onload = function(e) {
+      try {
+        const dataUrl = await comprimirImagenDesdeArchivo(archivo);
         const img = document.getElementById(imgId);
         const bloque = input.closest('.bloque-contenido');
         const hidden = bloque ? bloque.querySelector('.hidden-img-data') : null;
@@ -1065,7 +1171,6 @@ insertarBloqueDebajoSeleccionado(div);
 
         if (!img || !hidden) return;
 
-        const dataUrl = e.target.result;
         img.src = dataUrl;
         img.style.opacity = '1';
         hidden.value = dataUrl;
@@ -1073,13 +1178,9 @@ insertarBloqueDebajoSeleccionado(div);
         if (urlInput) {
           urlInput.value = '';
         }
-      };
-
-      lector.onerror = function() {
+      } catch (e) {
         alert('No se pudo cargar la imagen.');
-      };
-
-      lector.readAsDataURL(archivo);
+      }
     }
 
     /* 3. Preguntas de Evaluación */
@@ -1618,7 +1719,7 @@ async function guardarLeccion({ silencioso = false } = {}) {
   const bloquesContenido = [];
   const preguntas = [];
 
-  elementos.forEach((card, index) => {
+  for (const [index, card] of Array.from(elementos).entries()) {
     if (card.classList.contains('bloque-contenido')) {
       const tipoBloque = card.dataset.tipoBloque;
       const titulo = obtenerHTMLRico(card.querySelector('.titulo-bloque'));
@@ -1626,7 +1727,16 @@ async function guardarLeccion({ silencioso = false } = {}) {
       const { estiloTexto, estiloTitulo, estiloPregunta } = obtenerEstilosBloque(card);
 
       if (tipoBloque === 'mixto') {
-        const imagen = card.querySelector('.hidden-img-data').value;
+        const hiddenImagen = card.querySelector('.hidden-img-data');
+        let imagen = hiddenImagen.value;
+
+        // También optimiza imágenes Base64 antiguas la próxima vez que el admin guarde.
+        imagen = await optimizarDataUrlExistente(imagen);
+        if (imagen !== hiddenImagen.value) {
+          hiddenImagen.value = imagen;
+          const previewImg = card.querySelector('.img-preview-render');
+          if (previewImg) previewImg.src = imagen;
+        }
         const posicion = card.querySelector('.select-posicion').value;
         const tamano = card.querySelector('.select-tamano').value;
         bloquesContenido.push({ orden: index, tipo: 'mixto', titulo, texto, imagen, posicion, tamano, estiloTexto, estiloTitulo, estiloPregunta });
@@ -1676,7 +1786,8 @@ async function guardarLeccion({ silencioso = false } = {}) {
       }
       preguntas.push({ tipo, enunciado, datos, respuesta_correcta, puntos });
     }
-  });
+
+  }
 
   const res = await fetch(`/api/clases/${claseId}/guardar`, {
     method: 'POST',

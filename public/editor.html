@@ -102,6 +102,30 @@
     /* Tarjetas de Bloques */
     .block { background: white; border-radius: 14px; padding: 22px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); border-left: 6px solid var(--primary); position: relative; transition: all 0.3s ease; }
     .block:focus-within { box-shadow: 0 6px 20px rgba(108, 92, 231, 0.12); }
+    /* Estilos para arrastrar estilo Google Forms */
+    .block.dragging {
+      opacity: 0.4;
+      border: 2px dashed var(--primary) !important;
+    }
+
+    .btn-drag-handle {
+      cursor: grab;
+      font-size: 18px;
+      color: #94A3B8;
+      padding: 2px 8px;
+      border-radius: 4px;
+      user-select: none;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .btn-drag-handle:hover {
+      background: #E2E8F0;
+      color: #2D3436;
+    }
+
+    .btn-drag-handle:active {
+      cursor: grabbing;
+    }
     
     .block-toolbar { display: flex; justify-content: space-between; align-items: center; background: #F8FAFC; padding: 10px 14px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #E2E8F0; flex-wrap: wrap; gap: 10px; }
     .block-tag { font-size: 13px; font-weight: bold; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -425,19 +449,23 @@
       }
     }
 
-    /* 1. Bloque Solo Texto */
+/* 1. Bloque Solo Texto */
     function agregarBloqueTexto(contenido = '') {
       const div = document.createElement('div');
       div.className = 'block bloque-contenido';
       div.dataset.tipoBloque = 'texto';
       div.innerHTML = `
         <div class="block-toolbar">
-          <span class="block-tag">📖 Texto de Lectura</span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="btn-drag-handle" title="Arrastrar para reordenar">⋮⋮</span>
+            <span class="block-tag">📖 Texto de Lectura</span>
+          </div>
           <button class="btn-del" onclick="this.closest('.block').remove()">🗑️ Eliminar</button>
         </div>
         <textarea class="txt-contenido" oninput="autoAjustarTexto(this)" placeholder="Escribe aquí el texto de la lección...">${contenido}</textarea>
       `;
       document.getElementById('canvas').appendChild(div);
+      hacerBloqueArrastrable(div);
       const txtArea = div.querySelector('.txt-contenido');
       setTimeout(() => autoAjustarTexto(txtArea), 50);
     }
@@ -452,7 +480,10 @@
 
       div.innerHTML = `
         <div class="block-toolbar">
-          <span class="block-tag">🖼️ Texto + Imagen</span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="btn-drag-handle" title="Arrastrar para reordenar">⋮⋮</span>
+            <span class="block-tag">🖼️ Texto + Imagen</span>
+          </div>
           <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
             <label style="font-size:12px; font-weight:bold;">Posición:</label>
             <select class="input-field select-posicion" onchange="actualizarEstiloImagen(this)" style="width:auto; padding:4px 8px; font-size:12px;">
@@ -492,45 +523,12 @@
       `;
 
       document.getElementById('canvas').appendChild(div);
+      hacerBloqueArrastrable(div);
       const txtArea = div.querySelector('.txt-contenido');
       setTimeout(() => autoAjustarTexto(txtArea), 50);
     }
 
-    function actualizarEstiloImagen(select) {
-      const block = select.closest('.block');
-      const pos = block.querySelector('.select-posicion').value;
-      const tam = block.querySelector('.select-tamano').value;
-      const imgBox = block.querySelector('.img-container-editor');
-      
-      imgBox.className = `img-container-editor pos-${pos} size-${tam}`;
-    }
-
-    function actualizarUrlImagen(input, imgId) {
-      const img = document.getElementById(imgId);
-      const hidden = input.closest('.block').querySelector('.hidden-img-data');
-      if (input.value.trim() !== '') {
-        img.src = input.value;
-        img.style.opacity = '1';
-        hidden.value = input.value;
-      }
-    }
-
-    function subirArchivoImagen(fileInput, imgId) {
-      const file = fileInput.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          const img = document.getElementById(imgId);
-          img.src = e.target.result;
-          img.style.opacity = '1';
-          fileInput.closest('.block').querySelector('.hidden-img-data').value = e.target.result;
-          fileInput.closest('.block').querySelector('.txt-img-url').value = '';
-        };
-        reader.readAsDataURL(file);
-      }
-    }
-
-    /* 3. Preguntas de Evaluación (Interfaz Rediseñada) */
+    /* 3. Preguntas de Evaluación */
     function agregarBloquePregunta(datosExistentes = null) {
       contadorPreguntas++;
       const id = contadorPreguntas;
@@ -543,11 +541,14 @@
 
       div.innerHTML = `
         <div class="pregunta-header">
-          <select class="tipo-select input-field" style="width:180px; font-weight:600;" onchange="cambiarTipo(${id}, this.value)">
-            <option value="multiple" ${tipo === 'multiple' ? 'selected' : ''}>Opción Múltiple</option>
-            <option value="verdadero_falso" ${tipo === 'verdadero_falso' ? 'selected' : ''}>Verdadero / Falso</option>
-            <option value="unir" ${tipo === 'unir' ? 'selected' : ''}>Unir Palabras</option>
-          </select>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="btn-drag-handle" title="Arrastrar para reordenar">⋮⋮</span>
+            <select class="tipo-select input-field" style="width:180px; font-weight:600;" onchange="cambiarTipo(${id}, this.value)">
+              <option value="multiple" ${tipo === 'multiple' ? 'selected' : ''}>Opción Múltiple</option>
+              <option value="verdadero_falso" ${tipo === 'verdadero_falso' ? 'selected' : ''}>Verdadero / Falso</option>
+              <option value="unir" ${tipo === 'unir' ? 'selected' : ''}>Unir Palabras</option>
+            </select>
+          </div>
 
           <div class="pregunta-actions-top">
             <button type="button" class="btn-add-option" id="btn_add_opt_${id}" onclick="ejecutarAgregarOpcion(${id})">
@@ -565,6 +566,7 @@
       `;
       
       document.getElementById('canvas').appendChild(div);
+      hacerBloqueArrastrable(div);
       cambiarTipo(id, tipo, datosExistentes);
     }
 
@@ -1056,6 +1058,42 @@
       }
     }
 
+    /* FUNCIONES PARA MOVER TARJETAS (ESTILO GOOGLE FORMS) */
+    function hacerBloqueArrastrable(bloque) {
+      const handle = bloque.querySelector('.btn-drag-handle');
+      if (!handle) return;
+
+      handle.addEventListener('mousedown', () => {
+        bloque.setAttribute('draggable', 'true');
+      });
+
+      bloque.addEventListener('dragstart', () => {
+        bloque.classList.add('dragging');
+      });
+
+      bloque.addEventListener('dragend', () => {
+        bloque.classList.remove('dragging');
+        bloque.removeAttribute('draggable');
+      });
+    }
+
+    const canvas = document.getElementById('canvas');
+    canvas.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      const bloqueArrastrandose = document.querySelector('.block.dragging');
+      if (!bloqueArrastrandose) return;
+
+      const otrosBloques = [...canvas.querySelectorAll('.block:not(.dragging)')];
+      const bloqueSiguiente = otrosBloques.find(b => {
+        return e.clientY <= b.getBoundingClientRect().top + b.offsetHeight / 2;
+      });
+
+      if (bloqueSiguiente) {
+        canvas.insertBefore(bloqueArrastrandose, bloqueSiguiente);
+      } else {
+        canvas.appendChild(bloqueArrastrandose);
+      }
+    });
     cargarDatos();
   </script>
 </body>

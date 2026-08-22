@@ -415,6 +415,19 @@
       return `font-family:${familiaCssLectura(e.fuente)}; font-size:${e.tamano}px;`;
     }
 
+    function indiceRespuestaMultipleLectura(respuestaCorrecta, opciones = []) {
+      const valor = String(respuestaCorrecta ?? '');
+
+      const matchIndice = valor.match(/^idx:(\d+)$/);
+      if (matchIndice) {
+        const idx = Number(matchIndice[1]);
+        return Number.isInteger(idx) && idx >= 0 && idx < opciones.length ? idx : -1;
+      }
+
+      // Compatibilidad con preguntas antiguas guardadas por texto.
+      return opciones.findIndex(opt => String(opt) === valor);
+    }
+
     function escaparHTMLLectura(texto = '') {
       return String(texto)
         .replace(/&/g, '&amp;')
@@ -539,10 +552,10 @@ try {
 
               if (p.tipo === 'multiple') {
                 const opciones = Array.isArray(datosParseados) ? datosParseados : [];
-                opciones.forEach(optText => {
+                opciones.forEach((optText, optIndex) => {
                   html += `
-                    <button class="prev-opt-btn" onclick="seleccionarOpcionMultiple(this)">
-                      <span class="opt-text">${optText}</span>
+                    <button class="prev-opt-btn" data-opt-index="${optIndex}" onclick="seleccionarOpcionMultiple(this)">
+                      <span class="opt-text">${escaparHTMLLectura(optText)}</span>
                       <span class="opt-feedback"></span>
                     </button>
                   `;
@@ -848,27 +861,39 @@ const usuarioActual = localStorage.getItem('usuario') || 'Desconocido';
         if (p.tipo === 'multiple') {
           maxPtsQ = p.puntos || 1;
           const btnSeleccionado = card.querySelector('.prev-opt-btn.user-selected');
-          const respuestaCorrecta = p.respuesta_correcta || '';
+
+          let datosOpciones = p.datos;
+          try { datosOpciones = JSON.parse(p.datos); } catch (e) {}
+          const opciones = Array.isArray(datosOpciones) ? datosOpciones : [];
+          const indiceCorrecto = indiceRespuestaMultipleLectura(
+            p.respuesta_correcta,
+            opciones
+          );
 
           card.querySelectorAll('.prev-opt-btn').forEach(btn => {
-            const optTxt = btn.querySelector('.opt-text').innerText.trim();
+            const indiceBoton = Number(btn.dataset.optIndex);
             const feedback = btn.querySelector('.opt-feedback');
 
-            if (optTxt === respuestaCorrecta) {
+            if (indiceBoton === indiceCorrecto && indiceCorrecto >= 0) {
               btn.classList.add('correct');
               feedback.innerHTML = '✔️ Correcta';
             }
-            if (btn.classList.contains('user-selected') && optTxt !== respuestaCorrecta) {
+
+            if (
+              btn.classList.contains('user-selected') &&
+              indiceBoton !== indiceCorrecto
+            ) {
               btn.classList.add('incorrect');
               feedback.innerHTML = '❌ Tu elección';
             }
           });
 
-          if (btnSeleccionado) {
-            const txtElegido = btnSeleccionado.querySelector('.opt-text').innerText.trim();
-            if (txtElegido === respuestaCorrecta) {
-              puntosGanadosQ = maxPtsQ;
-            }
+          if (
+            btnSeleccionado &&
+            Number(btnSeleccionado.dataset.optIndex) === indiceCorrecto &&
+            indiceCorrecto >= 0
+          ) {
+            puntosGanadosQ = maxPtsQ;
           }
 
         // Verdadero / Falso (1 punto por cada afirmación)

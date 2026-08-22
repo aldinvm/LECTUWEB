@@ -1281,6 +1281,19 @@ insertarBloqueDebajoSeleccionado(div);
       aplicarFormatoAPregunta(div);
     }
 
+    function indiceRespuestaMultipleGuardada(respuestaCorrecta, opciones = []) {
+      const valor = String(respuestaCorrecta ?? '');
+
+      const matchIndice = valor.match(/^idx:(\d+)$/);
+      if (matchIndice) {
+        const idx = Number(matchIndice[1]);
+        return Number.isInteger(idx) && idx >= 0 && idx < opciones.length ? idx : -1;
+      }
+
+      // Compatibilidad con lecciones antiguas que guardaban el texto de la respuesta.
+      return opciones.findIndex(opt => String(opt) === valor);
+    }
+
     function ejecutarAgregarOpcion(id) {
       const select = document.querySelector(`.bloque-pregunta[data-id="${id}"] .tipo-select`);
       if (!select) return;
@@ -1312,12 +1325,17 @@ insertarBloqueDebajoSeleccionado(div);
       } else if (tipo === 'multiple') {
         cont.innerHTML = `<div id="opciones_list_${id}"></div>`;
         if (datosExistentes && Array.isArray(datosExistentes.datos)) {
-          datosExistentes.datos.forEach(opt => {
-            addOpcionMultiple(id, opt, opt === datosExistentes.respuesta_correcta);
+          const indiceCorrecto = indiceRespuestaMultipleGuardada(
+            datosExistentes.respuesta_correcta,
+            datosExistentes.datos
+          );
+
+          datosExistentes.datos.forEach((opt, optIndex) => {
+            addOpcionMultiple(id, opt, optIndex === indiceCorrecto);
           });
         } else {
-  addOpcionMultiple(id, '', true);
-}
+          addOpcionMultiple(id, '', true);
+        }
 
       } else if (tipo === 'unir') {
         cont.innerHTML = `<div id="unir_list_${id}"></div>`;
@@ -1505,16 +1523,16 @@ function abrirVistaPrevia() {
       html += `<p style="${cssPregunta} color:#111827; font-weight:700; margin-top:0;">${idx}. ${enunciado} <span style="color:${currentColor}; font-size:14px;">(${ptsPregunta} pt${ptsPregunta > 1 ? 's' : ''})</span></p>`;
 
       if (tipo === 'multiple') {
-        let correcta = '';
-        card.querySelectorAll('.opcion-row').forEach(row => {
-          if (row.querySelector('.radio-correcta').checked) correcta = row.querySelector('.txt-opcion').value;
-        });
+        const filasOpciones = Array.from(card.querySelectorAll('.opcion-row'));
+        const correctaIndex = filasOpciones.findIndex(
+          row => row.querySelector('.radio-correcta').checked
+        );
 
-        card.querySelectorAll('.opcion-row').forEach(row => {
+        filasOpciones.forEach((row, optIndex) => {
           const optText = row.querySelector('.txt-opcion').value;
           html += `
-            <button class="prev-opt-btn" onclick="evaluarMultiple(this, '${optText.replace(/'/g, "\\'")}', '${correcta.replace(/'/g, "\\'")}', 'q_${numeroTexto}_${idx}', 1)">
-              ${optText}
+            <button class="prev-opt-btn" data-texto-original="${escaparHTML(optText).replace(/&quot;/g, '&amp;quot;')}" onclick="evaluarMultiple(this, ${optIndex}, ${correctaIndex}, 'q_${numeroTexto}_${idx}', 1)">
+              ${escaparHTML(optText)}
             </button>
           `;
         });
@@ -1598,17 +1616,25 @@ function abrirVistaPrevia() {
   document.getElementById('modalPreview').style.display = 'flex';
   actualizarPuntajeUI();
 }
-    function evaluarMultiple(btn, elegida, correcta, qKey, ptsTotal) {
+    function evaluarMultiple(btn, indiceElegido, indiceCorrecto, qKey, ptsTotal) {
       const parent = btn.parentElement;
-      parent.querySelectorAll('.prev-opt-btn').forEach(b => b.classList.remove('correct', 'incorrect'));
+      parent.querySelectorAll('.prev-opt-btn').forEach(b => {
+        b.classList.remove('correct', 'incorrect');
+        const textoOriginal = b.dataset.textoOriginal;
+        if (textoOriginal !== undefined) b.innerHTML = textoOriginal;
+      });
 
-      if (elegida === correcta) {
+      if (!btn.dataset.textoOriginal) {
+        btn.dataset.textoOriginal = btn.innerHTML;
+      }
+
+      if (Number(indiceElegido) === Number(indiceCorrecto) && Number(indiceCorrecto) >= 0) {
         btn.classList.add('correct');
-        btn.innerHTML = `${elegida} &nbsp; ✔️ ¡Correcto!`;
+        btn.innerHTML = `${btn.dataset.textoOriginal} &nbsp; ✔️ ¡Correcto!`;
         registroPuntajesObtenidos[qKey] = ptsTotal;
       } else {
         btn.classList.add('incorrect');
-        btn.innerHTML = `${elegida} &nbsp; ❌ Inténtalo de nuevo`;
+        btn.innerHTML = `${btn.dataset.textoOriginal} &nbsp; ❌ Inténtalo de nuevo`;
         registroPuntajesObtenidos[qKey] = 0;
       }
       actualizarPuntajeUI();
@@ -1727,10 +1753,11 @@ function actualizarBotonPublicacion() {
   if (!btn) return;
 
   if (currentEstado === 'publicada') {
-    btn.innerHTML = '📥 Despublicar Lección';
-    btn.classList.add('is-published');
-    btn.title = 'Ocultar esta lección a los estudiantes';
+    // Una lección publicada se actualiza desde aquí.
+    // Para despublicarla se usa únicamente el Panel Administrativo.
+    btn.style.display = 'none';
   } else {
+    btn.style.display = 'flex';
     btn.innerHTML = '🌐 Publicar Lección';
     btn.classList.remove('is-published');
     btn.title = 'Hacer visible esta lección a los estudiantes';
@@ -1738,7 +1765,14 @@ function actualizarBotonPublicacion() {
 }
 
 async function alternarPublicacion() {
-  const nuevoEstado = currentEstado === 'publicada' ? 'borrador' : 'publicada';
+  // Dentro del editor solo se permite PUBLICAR.
+  // La acción Despublicar se realiza desde el Panel Administrativo.
+  if (currentEstado === 'publicada') {
+    actualizarBotonPublicacion();
+    return;
+  }
+
+  const nuevoEstado = 'publicada';
 
   // Al publicar, primero guarda automáticamente los cambios actuales.
   if (nuevoEstado === 'publicada') {
@@ -1764,9 +1798,7 @@ async function alternarPublicacion() {
 
     currentEstado = data.estado;
     actualizarBotonPublicacion();
-    alert(currentEstado === 'publicada'
-      ? 'Lección publicada. Ya es visible para los estudiantes.'
-      : 'Lección despublicada. Los estudiantes ya no pueden verla.');
+    alert('Lección publicada. Ya es visible para los estudiantes.');
   } catch (e) {
     alert('No se pudo conectar con el servidor.');
   } finally {
@@ -1775,12 +1807,120 @@ async function alternarPublicacion() {
 }
 
 /* Guardar Lección (Mantiene el Orden Intercalado mediante Marcadores) */
+function textoPlanoDesdeHTML(html = '') {
+  const temp = document.createElement('div');
+  temp.innerHTML = String(html || '');
+  return String(temp.innerText || temp.textContent || '').replace(/\u00a0/g, ' ').trim();
+}
+
+function marcarCampoInvalido(elemento) {
+  if (!elemento) return;
+  elemento.focus();
+  elemento.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  const bordeAnterior = elemento.style.borderColor;
+  elemento.style.borderColor = '#EF4444';
+  setTimeout(() => {
+    elemento.style.borderColor = bordeAnterior;
+  }, 1800);
+}
+
+function validarPreguntaAntesDeGuardar(card, numeroPregunta) {
+  const tipo = card.querySelector('.tipo-select').value;
+  const enunciadoEl = card.querySelector('.enunciado');
+  const enunciado = textoPlanoDesdeHTML(obtenerHTMLRico(enunciadoEl));
+
+  if (!enunciado) {
+    alert(`La pregunta ${numeroPregunta} necesita un enunciado.`);
+    marcarCampoInvalido(enunciadoEl);
+    return false;
+  }
+
+  if (tipo === 'multiple') {
+    const filas = Array.from(card.querySelectorAll('.opcion-row'));
+
+    if (filas.length < 2) {
+      alert(`La pregunta ${numeroPregunta} necesita al menos 2 alternativas.`);
+      return false;
+    }
+
+    for (let i = 0; i < filas.length; i++) {
+      const input = filas[i].querySelector('.txt-opcion');
+      if (!String(input.value || '').trim()) {
+        alert(`Completa la alternativa ${i + 1} de la pregunta ${numeroPregunta}.`);
+        marcarCampoInvalido(input);
+        return false;
+      }
+    }
+
+    const indiceCorrecto = filas.findIndex(
+      row => row.querySelector('.radio-correcta').checked
+    );
+
+    if (indiceCorrecto < 0) {
+      alert(`Selecciona cuál alternativa es la correcta en la pregunta ${numeroPregunta}.`);
+      return false;
+    }
+  }
+
+  if (tipo === 'verdadero_falso') {
+    const filas = Array.from(card.querySelectorAll('.vf-row'));
+    if (filas.length === 0) {
+      alert(`Agrega al menos una afirmación en la pregunta ${numeroPregunta}.`);
+      return false;
+    }
+
+    for (let i = 0; i < filas.length; i++) {
+      const input = filas[i].querySelector('.txt-vf-enunciado');
+      if (!String(input.value || '').trim()) {
+        alert(`Completa la afirmación ${i + 1} de la pregunta ${numeroPregunta}.`);
+        marcarCampoInvalido(input);
+        return false;
+      }
+    }
+  }
+
+  if (tipo === 'unir') {
+    const filas = Array.from(card.querySelectorAll('.unir-row'));
+    if (filas.length === 0) {
+      alert(`Agrega al menos una pareja en la pregunta ${numeroPregunta}.`);
+      return false;
+    }
+
+    for (let i = 0; i < filas.length; i++) {
+      const palabra = filas[i].querySelector('.txt-palabra');
+      const definicion = filas[i].querySelector('.txt-definicion');
+
+      if (!String(palabra.value || '').trim()) {
+        alert(`Completa el concepto ${i + 1} de la pregunta ${numeroPregunta}.`);
+        marcarCampoInvalido(palabra);
+        return false;
+      }
+
+      if (!String(definicion.value || '').trim()) {
+        alert(`Completa la definición ${i + 1} de la pregunta ${numeroPregunta}.`);
+        marcarCampoInvalido(definicion);
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
 async function guardarLeccion({ silencioso = false } = {}) {
   const titulo = document.getElementById('tituloLeccion').value;
   const elementos = document.querySelectorAll('#canvas .block');
 
   const bloquesContenido = [];
   const preguntas = [];
+
+  const tarjetasPregunta = Array.from(document.querySelectorAll('#canvas .bloque-pregunta'));
+  for (let i = 0; i < tarjetasPregunta.length; i++) {
+    if (!validarPreguntaAntesDeGuardar(tarjetasPregunta[i], i + 1)) {
+      return false;
+    }
+  }
 
   for (const [index, card] of Array.from(elementos).entries()) {
     if (card.classList.contains('bloque-contenido')) {
@@ -1819,13 +1959,14 @@ async function guardarLeccion({ silencioso = false } = {}) {
 
       if (tipo === 'multiple') {
         puntos = 1;
-        const opciones = [];
-        card.querySelectorAll('.opcion-row').forEach(row => {
-          const txt = row.querySelector('.txt-opcion').value;
-          opciones.push(txt);
-          if (row.querySelector('.radio-correcta').checked) respuesta_correcta = txt;
-        });
+        const filasOpciones = Array.from(card.querySelectorAll('.opcion-row'));
+        const opciones = filasOpciones.map(row => row.querySelector('.txt-opcion').value.trim());
+        const indiceCorrecto = filasOpciones.findIndex(
+          row => row.querySelector('.radio-correcta').checked
+        );
+
         datos = opciones;
+        respuesta_correcta = `idx:${indiceCorrecto}`;
       } else if (tipo === 'verdadero_falso') {
         const vfItems = [];
         const filasVF = card.querySelectorAll('.vf-row');

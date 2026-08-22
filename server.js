@@ -2,7 +2,8 @@ const express = require('express');
 const db = require('./database');
 
 const app = express();
-app.use(express.json());
+// Permite guardar lecciones con imágenes comprimidas en Base64.
+app.use(express.json({ limit: '20mb' }));
 app.use(express.static('public'));
 
 // Login

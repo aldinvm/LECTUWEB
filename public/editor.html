@@ -297,11 +297,23 @@
       font-weight: 700;
     }
     /* Layout Flotante en Editor */
-    .mixto-editor-wrap { width: 100%; overflow: hidden; margin-top: 10px; }
+    .mixto-editor-wrap {
+      width: 100%;
+      overflow: visible;
+      margin-top: 10px;
+      display: flow-root;
+    }
+
+    /* En Texto + Imagen, el texto utiliza el espacio libre junto a la imagen. */
+    .mixto-editor-wrap .texto-mixto-editor {
+      width: auto;
+      overflow: visible !important;
+      min-height: 170px;
+    }
     
     .img-container-editor { transition: all 0.2s ease; }
-    .img-container-editor.pos-derecha { float: right; margin-left: 20px; margin-bottom: 15px; }
-    .img-container-editor.pos-izquierda { float: left; margin-right: 20px; margin-bottom: 15px; }
+    .img-container-editor.pos-derecha { float: right; margin-left: 20px; margin-bottom: 15px; max-width: 48%; }
+    .img-container-editor.pos-izquierda { float: left; margin-right: 20px; margin-bottom: 15px; max-width: 48%; }
     .img-container-editor.pos-arriba { float: none; display: block; margin: 0 auto 15px auto; }
 
     .img-container-editor.size-pequena { width: 200px; }
@@ -431,6 +443,19 @@
       .sidebar-actions {
         position: static;
       }
+
+      .img-container-editor.pos-derecha,
+      .img-container-editor.pos-izquierda {
+        float: none;
+        width: 100% !important;
+        max-width: 100%;
+        margin: 0 0 15px 0;
+      }
+
+      .mixto-editor-wrap .texto-mixto-editor {
+        width: 100%;
+        min-height: 130px;
+      }
     }
   </style>
 </head>
@@ -508,7 +533,7 @@
         <div class="sidebar-title">Acciones</div>
         <button class="btn-add" onclick="abrirVistaPrevia()" style="border-color: #0984E3; color: #0984E3;">👁️ Vista Previa</button>
         <button class="btn-add" onclick="window.location.href='/admin.html'" style="border-color: #636E72; color: #636E72;">⬅️ Volver al Panel</button>
-        <button class="btn-save" onclick="guardarLeccion()">💾 Guardar Lección</button>
+        <button id="btnGuardarLeccion" class="btn-save" onclick="guardarLeccion()">💾 Guardar Lección</button>
         <button id="btnPublicar" class="btn-publish" onclick="alternarPublicacion()">🌐 Publicar Lección</button>
       </aside>
     </div>
@@ -804,7 +829,31 @@ let contadorPreguntas = 0;
     }
 
     function obtenerHTMLRico(elemento) {
-      return sanitizarHTMLFormato(elemento?.innerHTML || '');
+      if (!elemento) return '';
+
+      const htmlLimpio = sanitizarHTMLFormato(elemento.innerHTML || '');
+      const textoPlano = String(elemento.innerText || elemento.textContent || '')
+        .replace(/\u00a0/g, ' ')
+        .trim();
+
+      // Evita perder texto visible por peculiaridades de contenteditable.
+      if (!textoVisibleHTML(htmlLimpio) && textoPlano) {
+        return escaparHTML(textoPlano).replace(/\r?\n/g, '<br>');
+      }
+
+      return htmlLimpio;
+    }
+
+    function obtenerTextoDeBloque(card, tipoBloque = '') {
+      if (!card) return '';
+
+      const selector = tipoBloque === 'mixto'
+        ? '[data-campo="texto-mixto"]'
+        : '[data-campo="texto-normal"]';
+
+      return obtenerHTMLRico(
+        card.querySelector(selector) || card.querySelector('.txt-contenido')
+      );
     }
 
     function textoVisibleHTML(html = '') {
@@ -858,7 +907,7 @@ async function cargarDatos() {
               renderizarPregunta(p);
             }
           } else if (b.tipo === 'mixto') {
-            agregarBloqueMixto(b.texto, b.imagen, b.posicion || 'derecha', b.tamano || 'mediana', b.titulo || '');
+            agregarBloqueMixto(b.texto ?? b.contenidoTexto ?? '', b.imagen || '', b.posicion || 'derecha', b.tamano || 'mediana', b.titulo || '');
           } else {
             agregarBloqueTexto(b.texto || b, b.titulo || '');
           }
@@ -933,7 +982,7 @@ function marcarBloqueSeleccionado(bloque) {
           <button class="btn-del" onclick="eliminarBloque(this)">🗑️ Eliminar</button>
         </div>
         <div class="rich-editor titulo-bloque" contenteditable="true" data-placeholder="Título del texto (opcional)" onfocus="registrarEditorRico(this)" onmouseup="registrarEditorRico(this)" onkeyup="registrarEditorRico(this)" onkeydown="if(event.key === 'Enter') event.preventDefault();">${valorGuardadoAHTML(titulo)}</div>
-        <div class="rich-editor txt-contenido" contenteditable="true" data-placeholder="Escribe aquí el texto de la lección..." onfocus="registrarEditorRico(this)" onmouseup="registrarEditorRico(this)" onkeyup="registrarEditorRico(this)">${valorGuardadoAHTML(contenido)}</div>
+        <div class="rich-editor txt-contenido texto-normal-editor" data-campo="texto-normal" contenteditable="true" data-placeholder="Escribe aquí el texto de la lección..." onfocus="registrarEditorRico(this)" onmouseup="registrarEditorRico(this)" onkeyup="registrarEditorRico(this)">${valorGuardadoAHTML(contenido)}</div>
       `;
       insertarBloqueDebajoSeleccionado(div);
       hacerBloqueArrastrable(div);
@@ -1000,7 +1049,7 @@ function marcarBloqueSeleccionado(bloque) {
             </div>
           </div>
 
-          <div class="rich-editor txt-contenido" contenteditable="true" data-placeholder="Escribe el texto que acompaña a la imagen aquí..." onfocus="registrarEditorRico(this)" onmouseup="registrarEditorRico(this)" onkeyup="registrarEditorRico(this)">${valorGuardadoAHTML(texto)}</div>
+          <div class="rich-editor txt-contenido texto-mixto-editor" data-campo="texto-mixto" contenteditable="true" data-placeholder="Escribe el texto que acompaña a la imagen aquí..." onfocus="registrarEditorRico(this)" onmouseup="registrarEditorRico(this)" onkeyup="registrarEditorRico(this)">${valorGuardadoAHTML(texto)}</div>
         </div>
       `;
 
@@ -1400,7 +1449,7 @@ function abrirVistaPrevia() {
 
       const tipoBloque = card.dataset.tipoBloque;
       const tituloBloque = obtenerHTMLRico(card.querySelector('.titulo-bloque'));
-      const texto = obtenerHTMLRico(card.querySelector('.txt-contenido'));
+      const texto = obtenerTextoDeBloque(card, tipoBloque);
       const { estiloTexto, estiloTitulo } = obtenerEstilosBloque(card);
       const cssTexto = estiloInline(estiloTexto, 'texto');
       const cssTitulo = estiloInline(estiloTitulo, 'titulo');
@@ -1425,10 +1474,10 @@ function abrirVistaPrevia() {
         }
 
         html += `
-          <div style="margin-bottom: 25px; width: 100%;" class="clearfix">
+          <div style="margin-bottom: 25px; width: 100%; display:flow-root;" class="clearfix preview-mixto-wrap">
             ${tituloBloque ? `<h2 style="color:#111827; margin:0 0 12px 0; ${cssTitulo}">${tituloBloque}</h2>` : ''}
             ${img ? `<img src="${img}" style="max-height:450px; object-fit:cover; border-radius:10px; box-shadow:0 3px 8px rgba(0,0,0,0.1); ${floatStyle}">` : ''}
-            <div style="${cssTexto} line-height:1.7; color:#2D3436; text-align:justify;">${texto}</div>
+            <div class="preview-mixto-texto" style="${cssTexto} line-height:1.7; color:#2D3436; text-align:justify;">${texto}</div>
             <div style="clear:both;"></div>
           </div>
         `;
@@ -1659,8 +1708,22 @@ function abrirVistaPrevia() {
       conceptoSeleccionado = null;
     }
 
+function actualizarBotonGuardado() {
+  const btnGuardar = document.getElementById('btnGuardarLeccion');
+  if (!btnGuardar) return;
+
+  if (currentEstado === 'publicada') {
+    btnGuardar.innerHTML = '🔄 Actualizar Lección';
+    btnGuardar.title = 'Guardar los cambios y mantener la lección publicada';
+  } else {
+    btnGuardar.innerHTML = '💾 Guardar Lección';
+    btnGuardar.title = 'Guardar esta lección como borrador';
+  }
+}
+
 function actualizarBotonPublicacion() {
   const btn = document.getElementById('btnPublicar');
+  actualizarBotonGuardado();
   if (!btn) return;
 
   if (currentEstado === 'publicada') {
@@ -1723,7 +1786,7 @@ async function guardarLeccion({ silencioso = false } = {}) {
     if (card.classList.contains('bloque-contenido')) {
       const tipoBloque = card.dataset.tipoBloque;
       const titulo = obtenerHTMLRico(card.querySelector('.titulo-bloque'));
-      const texto = obtenerHTMLRico(card.querySelector('.txt-contenido'));
+      const texto = obtenerTextoDeBloque(card, tipoBloque);
       const { estiloTexto, estiloTitulo, estiloPregunta } = obtenerEstilosBloque(card);
 
       if (tipoBloque === 'mixto') {
@@ -1739,7 +1802,7 @@ async function guardarLeccion({ silencioso = false } = {}) {
         }
         const posicion = card.querySelector('.select-posicion').value;
         const tamano = card.querySelector('.select-tamano').value;
-        bloquesContenido.push({ orden: index, tipo: 'mixto', titulo, texto, imagen, posicion, tamano, estiloTexto, estiloTitulo, estiloPregunta });
+        bloquesContenido.push({ orden: index, tipo: 'mixto', titulo, texto, contenidoTexto: texto, imagen, posicion, tamano, estiloTexto, estiloTitulo, estiloPregunta });
       } else {
         bloquesContenido.push({ orden: index, tipo: 'texto', titulo, texto, estiloTexto, estiloTitulo, estiloPregunta });
       }
@@ -1801,21 +1864,32 @@ async function guardarLeccion({ silencioso = false } = {}) {
   });
 
   if (!res.ok) {
-    if (!silencioso) alert('No se pudo guardar la lección.');
+    let detalle = '';
+    try {
+      const dataError = await res.json();
+      detalle = dataError.error || '';
+    } catch (e) {}
+
+    if (!silencioso) {
+      alert(detalle || `No se pudo guardar la lección (error ${res.status}).`);
+    }
     return false;
   }
 
   if (!silencioso) {
-    const btnGuardar = document.querySelector('.btn-save');
-    const textoOriginal = btnGuardar.innerHTML;
-    
-    btnGuardar.innerHTML = '¡Guardado Exitosamente! ✅';
-    btnGuardar.style.background = '#10B981'; 
-    
-    setTimeout(() => {
-      btnGuardar.innerHTML = textoOriginal;
-      btnGuardar.style.background = 'var(--primary)';
-    }, 3000);
+    const btnGuardar = document.getElementById('btnGuardarLeccion');
+
+    if (btnGuardar) {
+      btnGuardar.innerHTML = currentEstado === 'publicada'
+        ? '¡Lección Actualizada! ✅'
+        : '¡Guardado Exitosamente! ✅';
+      btnGuardar.style.background = '#10B981';
+
+      setTimeout(() => {
+        btnGuardar.style.background = 'var(--primary)';
+        actualizarBotonGuardado();
+      }, 2200);
+    }
   }
   return true;
 }

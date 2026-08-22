@@ -20,7 +20,8 @@ db.serialize(() => {
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     titulo TEXT,
     contenido TEXT,
-    estado TEXT DEFAULT 'borrador'
+    estado TEXT DEFAULT 'borrador',
+    color TEXT DEFAULT '#6C5CE7'
   )`);
 
   db.run(`CREATE TABLE IF NOT EXISTS preguntas (
@@ -40,6 +41,10 @@ db.serialize(() => {
   });
 // Agrega la columna estado a lecturas si ya existía la base de datos
   db.run(`ALTER TABLE lecturas ADD COLUMN estado TEXT DEFAULT 'borrador'`, (err) => {
+    // Si la columna ya existe, SQLite dará un aviso que podemos ignorar
+  });
+  // Guarda el tema de color elegido para cada lección
+  db.run(`ALTER TABLE lecturas ADD COLUMN color TEXT DEFAULT '#6C5CE7'`, (err) => {
     // Si la columna ya existe, SQLite dará un aviso que podemos ignorar
   });
   db.run(`CREATE TABLE IF NOT EXISTS resultados (

@@ -388,12 +388,16 @@
           </div>
         `;
 
-        try {
+try {
           const res = await fetch(`/api/clases/${idLeccion}`);
           const respuestaServer = await res.json();
           
           const leccion = respuestaServer.lectura;
           preguntasGlobales = respuestaServer.preguntas || [];
+          
+          // Clonamos las preguntas para irlas sacando e intercalando en el texto
+          let preguntasDisponibles = [...preguntasGlobales]; 
+          let preguntaIndex = 0; // Índice real para mantener las validaciones de evaluación
           
           if (leccion) {
             document.getElementById('tituloLeccion').innerText = leccion.titulo || 'Sin título';
@@ -401,143 +405,159 @@
               document.documentElement.style.setProperty('--primary', leccion.color);
             }
             
-            // RENDERIZAR BLOQUES
+            // --- FUNCIÓN PARA CREAR EL HTML DE UNA PREGUNTA ---
+            function generarHTMLPregunta(p, idx) {
+              let datosParseados = p.datos;
+              try { datosParseados = JSON.parse(p.datos); } catch(e){}
+
+              let pts = p.puntos || 1;
+              if (p.tipo === 'verdadero_falso') {
+                pts = Array.isArray(datosParseados) ? datosParseados.length : 1;
+              } else if (p.tipo === 'unir') {
+                const parejas = typeof datosParseados === 'string' ? datosParseados.split(', ') : [];
+                pts = parejas.length || 1;
+              }
+
+              // Le damos márgenes amplios para que se note separada del texto de lectura
+              let html = `<div class="pregunta-card" id="q_card_${idx}" data-idx="${idx}" data-tipo="${p.tipo}" style="margin: 40px 0; border: 2px dashed #CBD5E1;">`;
+              html += `<p style="font-weight:bold; font-size:17px; margin-top:0;">${idx + 1}. ${p.enunciado} <span style="color:var(--primary); font-size:14px;">(${pts} ${pts === 1 ? 'pt' : 'pts'})</span></p>`;
+
+              if (p.tipo === 'multiple') {
+                const opciones = Array.isArray(datosParseados) ? datosParseados : [];
+                opciones.forEach(optText => {
+                  html += `
+                    <button class="prev-opt-btn" onclick="seleccionarOpcionMultiple(this)">
+                      <span class="opt-text">${optText}</span>
+                      <span class="opt-feedback"></span>
+                    </button>
+                  `;
+                });
+
+              } else if (p.tipo === 'verdadero_falso') {
+                const items = Array.isArray(datosParseados) ? datosParseados : [];
+                items.forEach((item) => {
+                  html += `
+                    <div class="vf-interactive-row" data-respuesta-correcta="${item.respuesta}">
+                      <span style="font-size:15px; font-weight:500;">${item.texto}</span>
+                      <div style="display:flex; gap:8px;">
+                        <button class="btn-vf-prev" onclick="seleccionarVF(this, 'V')">V</button>
+                        <button class="btn-vf-prev" onclick="seleccionarVF(this, 'F')">F</button>
+                      </div>
+                    </div>
+                  `;
+                });
+
+              } else if (p.tipo === 'unir') {
+                const conceptos = [];
+                const respuestas = [];
+                const parejas = typeof datosParseados === 'string' ? datosParseados.split(', ') : [];
+
+                parejas.forEach((pair, rIdx) => {
+                  const [pal, def] = pair.split(' = ');
+                  const color = ribbonPalette[rIdx % ribbonPalette.length];
+                  conceptos.push({ id: rIdx, texto: pal, color, parejaDef: def });
+                  respuestas.push({ id: rIdx, texto: def, parejaPal: pal });
+                });
+
+                respuestas.sort(() => Math.random() - 0.5);
+
+                html += `<div class="unir-container" id="unir_q_${idx}">`;
+                html += `<div class="unir-col-left" style="display:flex; flex-direction:column; gap:10px;">`;
+                conceptos.forEach(c => {
+                  html += `
+                    <div class="card-ribbon item-concepto" 
+                         style="--ribbon-color: ${c.color};" 
+                         data-id="${c.id}" 
+                         data-pareja="${(c.parejaDef || '').replace(/"/g, '&quot;')}" 
+                         data-color="${c.color}"
+                         onclick="seleccionarConceptoUnir(this)">
+                      <span>${c.texto}</span>
+                      <span class="status-icon"></span>
+                    </div>
+                  `;
+                });
+                html += `</div>`;
+
+                html += `<div class="unir-col-right" style="display:flex; flex-direction:column; gap:10px;">`;
+                respuestas.forEach((r, rIdx) => {
+                  html += `
+                    <div class="card-ribbon item-respuesta" 
+                         data-id="${rIdx}"
+                         data-texto="${(r.texto || '').replace(/"/g, '&quot;')}" 
+                         onclick="seleccionarRespuestaUnir(this)">
+                      <span>${r.texto}</span>
+                      <span class="status-icon"></span>
+                    </div>
+                  `;
+                });
+                html += `</div></div>`;
+              }
+              html += `</div>`;
+              return html;
+            }
+
+            // --- RENDERIZAR BLOQUES (INTERCALANDO TEXTO Y PREGUNTAS) ---
             let htmlContenido = '';
             try {
               const bloques = JSON.parse(leccion.contenido);
               bloques.forEach(b => {
-                const textoFormateado = (b.texto || '').replace(/\n/g, '<br>');
-
-                if (b.tipo === 'mixto') {
-                  let pxWidth = '300px';
-                  if (b.tamano === 'pequena') pxWidth = '200px';
-                  if (b.tamano === 'grande') pxWidth = '420px';
-                  if (b.tamano === 'full' || b.posicion === 'arriba') pxWidth = '100%';
-
-                  let floatStyle = '';
-                  if (b.posicion === 'derecha') {
-                    floatStyle = `float: right; margin-left: 20px; margin-bottom: 15px; width: ${pxWidth};`;
-                  } else if (b.posicion === 'izquierda') {
-                    floatStyle = `float: left; margin-right: 20px; margin-bottom: 15px; width: ${pxWidth};`;
-                  } else {
-                    floatStyle = `display: block; margin: 0 auto 15px auto; width: ${pxWidth};`;
+                
+                // Si encontramos un marcador de pregunta, la insertamos aquí mismo
+                if (b.tipo === 'placeholder_pregunta') {
+                  if (preguntasDisponibles.length > 0) {
+                    const p = preguntasDisponibles.shift();
+                    htmlContenido += generarHTMLPregunta(p, preguntaIndex);
+                    preguntaIndex++;
                   }
-
-                  htmlContenido += `
-                    <div style="margin-bottom: 25px; width: 100%;" class="clearfix">
-                      ${b.imagen ? `<img src="${b.imagen}" style="max-height:450px; object-fit:cover; border-radius:10px; box-shadow:0 3px 8px rgba(0,0,0,0.1); ${floatStyle}">` : ''}
-                      <div style="font-size:16px; line-height:1.7; color:#2D3436; text-align:justify;">${textoFormateado}</div>
-                      <div style="clear:both;"></div>
-                    </div>
-                  `;
                 } else {
-                  htmlContenido += `<div style="font-size:16px; line-height:1.7; color:#2D3436; margin-bottom:20px; text-align:justify;">${textoFormateado}</div>`;
+                  // Es un bloque de texto o mixto normal
+                  const textoFormateado = (b.texto || '').replace(/\n/g, '<br>');
+
+                  if (b.tipo === 'mixto') {
+                    let pxWidth = '300px';
+                    if (b.tamano === 'pequena') pxWidth = '200px';
+                    if (b.tamano === 'grande') pxWidth = '420px';
+                    if (b.tamano === 'full' || b.posicion === 'arriba') pxWidth = '100%';
+
+                    let floatStyle = '';
+                    if (b.posicion === 'derecha') {
+                      floatStyle = `float: right; margin-left: 20px; margin-bottom: 15px; width: ${pxWidth};`;
+                    } else if (b.posicion === 'izquierda') {
+                      floatStyle = `float: left; margin-right: 20px; margin-bottom: 15px; width: ${pxWidth};`;
+                    } else {
+                      floatStyle = `display: block; margin: 0 auto 15px auto; width: ${pxWidth};`;
+                    }
+
+                    htmlContenido += `
+                      <div style="margin-bottom: 25px; width: 100%;" class="clearfix">
+                        ${b.imagen ? `<img src="${b.imagen}" style="max-height:450px; object-fit:cover; border-radius:10px; box-shadow:0 3px 8px rgba(0,0,0,0.1); ${floatStyle}">` : ''}
+                        <div style="font-size:16px; line-height:1.7; color:#2D3436; text-align:justify;">${textoFormateado}</div>
+                        <div style="clear:both;"></div>
+                      </div>
+                    `;
+                  } else {
+                    htmlContenido += `<div style="font-size:16px; line-height:1.7; color:#2D3436; margin-bottom:20px; text-align:justify;">${textoFormateado}</div>`;
+                  }
                 }
               });
             } catch(e) {
               htmlContenido = `<div style="font-size:16px; line-height:1.7; color:#2D3436;">${(leccion.contenido || '').replace(/\n/g, '<br>')}</div>`;
             }
-            
-            document.getElementById('contenidoLeccion').innerHTML = htmlContenido;
 
-            // RENDERIZAR PREGUNTAS
-            const divPreguntas = document.getElementById('seccionPreguntas');
-            if (preguntasGlobales && preguntasGlobales.length > 0) {
-              let htmlPreguntas = `<h2 style="color:var(--primary); margin-top:40px; border-top:2px dashed #CBD5E1; padding-top:20px;">📝 Actividades de Evaluación</h2>`;
-              
-              preguntasGlobales.forEach((p, idx) => {
-                let datosParseados = p.datos;
-                try { datosParseados = JSON.parse(p.datos); } catch(e){}
-
-                let pts = p.puntos || 1;
-                if (p.tipo === 'verdadero_falso') {
-                  pts = Array.isArray(datosParseados) ? datosParseados.length : 1;
-                } else if (p.tipo === 'unir') {
-                  const parejas = typeof datosParseados === 'string' ? datosParseados.split(', ') : [];
-                  pts = parejas.length || 1;
-                }
-
-                htmlPreguntas += `<div class="pregunta-card" id="q_card_${idx}" data-idx="${idx}" data-tipo="${p.tipo}">`;
-                htmlPreguntas += `<p style="font-weight:bold; font-size:17px; margin-top:0;">${idx + 1}. ${p.enunciado} <span style="color:var(--primary); font-size:14px;">(${pts} ${pts === 1 ? 'pt' : 'pts'})</span></p>`;
-
-                if (p.tipo === 'multiple') {
-                  const opciones = Array.isArray(datosParseados) ? datosParseados : [];
-                  opciones.forEach(optText => {
-                    htmlPreguntas += `
-                      <button class="prev-opt-btn" onclick="seleccionarOpcionMultiple(this)">
-                        <span class="opt-text">${optText}</span>
-                        <span class="opt-feedback"></span>
-                      </button>
-                    `;
-                  });
-
-                } else if (p.tipo === 'verdadero_falso') {
-                  const items = Array.isArray(datosParseados) ? datosParseados : [];
-                  items.forEach((item, itemIdx) => {
-                    htmlPreguntas += `
-                      <div class="vf-interactive-row" data-respuesta-correcta="${item.respuesta}">
-                        <span style="font-size:15px; font-weight:500;">${item.texto}</span>
-                        <div style="display:flex; gap:8px;">
-                          <button class="btn-vf-prev" onclick="seleccionarVF(this, 'V')">V</button>
-                          <button class="btn-vf-prev" onclick="seleccionarVF(this, 'F')">F</button>
-                        </div>
-                      </div>
-                    `;
-                  });
-
-                } else if (p.tipo === 'unir') {
-                  const conceptos = [];
-                  const respuestas = [];
-                  const parejas = typeof datosParseados === 'string' ? datosParseados.split(', ') : [];
-
-                  parejas.forEach((pair, rIdx) => {
-                    const [pal, def] = pair.split(' = ');
-                    const color = ribbonPalette[rIdx % ribbonPalette.length];
-                    conceptos.push({ id: rIdx, texto: pal, color, parejaDef: def });
-                    respuestas.push({ id: rIdx, texto: def, parejaPal: pal });
-                  });
-
-                  respuestas.sort(() => Math.random() - 0.5);
-
-                  htmlPreguntas += `<div class="unir-container" id="unir_q_${idx}">`;
-                  htmlPreguntas += `<div class="unir-col-left" style="display:flex; flex-direction:column; gap:10px;">`;
-                  conceptos.forEach(c => {
-                    htmlPreguntas += `
-                      <div class="card-ribbon item-concepto" 
-                           style="--ribbon-color: ${c.color};" 
-                           data-id="${c.id}" 
-                           data-pareja="${(c.parejaDef || '').replace(/"/g, '&quot;')}" 
-                           data-color="${c.color}"
-                           onclick="seleccionarConceptoUnir(this)">
-                        <span>${c.texto}</span>
-                        <span class="status-icon"></span>
-                      </div>
-                    `;
-                  });
-                  htmlPreguntas += `</div>`;
-
-                  htmlPreguntas += `<div class="unir-col-right" style="display:flex; flex-direction:column; gap:10px;">`;
-                  respuestas.forEach((r, rIdx) => {
-                    htmlPreguntas += `
-                      <div class="card-ribbon item-respuesta" 
-                           data-id="${rIdx}"
-                           data-texto="${(r.texto || '').replace(/"/g, '&quot;')}" 
-                           onclick="seleccionarRespuestaUnir(this)">
-                        <span>${r.texto}</span>
-                        <span class="status-icon"></span>
-                      </div>
-                    `;
-                  });
-                  htmlPreguntas += `</div>`;
-                  htmlPreguntas += `</div>`;
-                }
-
-                htmlPreguntas += `</div>`;
-              });
-
-              htmlPreguntas += `<button class="btn-enviar-examen" onclick="evaluarYEnviarExamen()">Enviar Examen 🚀</button>`;
-              divPreguntas.innerHTML = htmlPreguntas;
+            // Si quedaron preguntas huérfanas, las ponemos al final
+            while(preguntasDisponibles.length > 0) {
+              const p = preguntasDisponibles.shift();
+              htmlContenido += generarHTMLPregunta(p, preguntaIndex);
+              preguntaIndex++;
             }
+            
+            // Botón de Enviar Examen si hubo preguntas
+            if (preguntasGlobales.length > 0) {
+              htmlContenido += `<button class="btn-enviar-examen" onclick="evaluarYEnviarExamen()" style="margin-top: 40px;">Enviar Examen 🚀</button>`;
+            }
+
+            document.getElementById('contenidoLeccion').innerHTML = htmlContenido;
+            document.getElementById('seccionPreguntas').innerHTML = ''; // Vacío porque ya se integraron en el texto
           }
         } catch (e) {
           document.getElementById('tituloLeccion').innerText = "Error";

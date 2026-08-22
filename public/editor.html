@@ -102,6 +102,7 @@
     /* Tarjetas de Bloques */
     .block { background: white; border-radius: 14px; padding: 22px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); border-left: 6px solid var(--primary); position: relative; transition: all 0.3s ease; }
     .block:focus-within { box-shadow: 0 6px 20px rgba(108, 92, 231, 0.12); }
+    .block.selected-block { box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.25), 0 6px 20px rgba(108, 92, 231, 0.12); }
     /* Estilos para arrastrar estilo Google Forms */
     .block.dragging {
       opacity: 0.4;
@@ -430,9 +431,9 @@ async function cargarDatos() {
               renderizarPregunta(p);
             }
           } else if (b.tipo === 'mixto') {
-            agregarBloqueMixto(b.texto, b.imagen, b.posicion || 'derecha', b.tamano || 'mediana');
+            agregarBloqueMixto(b.texto, b.imagen, b.posicion || 'derecha', b.tamano || 'mediana', b.titulo || '');
           } else {
-            agregarBloqueTexto(b.texto || b);
+            agregarBloqueTexto(b.texto || b, b.titulo || '');
           }
         });
       } else {
@@ -460,8 +461,38 @@ async function cargarDatos() {
   }
 }
 
-/* 1. Bloque Solo Texto */
-    function agregarBloqueTexto(contenido = '') {
+function marcarBloqueSeleccionado(bloque) {
+      document.querySelectorAll('#canvas .block').forEach(b => b.classList.remove('selected-block'));
+      if (bloque) bloque.classList.add('selected-block');
+    }
+
+    function insertarBloqueDebajoSeleccionado(nuevoBloque) {
+      const canvas = document.getElementById('canvas');
+      const seleccionado = bloqueSeleccionado && bloqueSeleccionado.classList?.contains('block')
+        ? bloqueSeleccionado
+        : null;
+
+      if (seleccionado && seleccionado.parentElement === canvas) {
+        seleccionado.insertAdjacentElement('afterend', nuevoBloque);
+      } else {
+        canvas.appendChild(nuevoBloque);
+      }
+
+      bloqueSeleccionado = nuevoBloque;
+      marcarBloqueSeleccionado(nuevoBloque);
+    }
+
+    function eliminarBloque(boton) {
+      const bloque = boton.closest('.block');
+      if (!bloque) return;
+      const siguiente = bloque.nextElementSibling || bloque.previousElementSibling;
+      bloque.remove();
+      bloqueSeleccionado = siguiente && siguiente.classList.contains('block') ? siguiente : null;
+      marcarBloqueSeleccionado(bloqueSeleccionado);
+    }
+
+    /* 1. Bloque Solo Texto */
+    function agregarBloqueTexto(contenido = '', titulo = '') {
       const div = document.createElement('div');
       div.className = 'block bloque-contenido';
       div.dataset.tipoBloque = 'texto';
@@ -471,23 +502,35 @@ async function cargarDatos() {
             <span class="btn-drag-handle" title="Arrastrar para reordenar">⋮⋮</span>
             <span class="block-tag">📖 Texto de Lectura</span>
           </div>
-          <button class="btn-del" onclick="this.closest('.block').remove()">🗑️ Eliminar</button>
+          <button class="btn-del" onclick="eliminarBloque(this)">🗑️ Eliminar</button>
         </div>
+        <input type="text" class="input-field titulo-bloque" value="${titulo}" placeholder="Título del texto (opcional)" style="font-size:20px; font-weight:bold; margin-bottom:12px;">
         <textarea class="txt-contenido" oninput="autoAjustarTexto(this)" placeholder="Escribe aquí el texto de la lección...">${contenido}</textarea>
       `;
-      document.getElementById('canvas').appendChild(div);
+      insertarBloqueDebajoSeleccionado(div);
       hacerBloqueArrastrable(div);
       const txtArea = div.querySelector('.txt-contenido');
       
+      div.addEventListener('click', (e) => {
+        if (e.target.closest('button, input, textarea, select, label')) {
+          bloqueSeleccionado = div;
+          marcarBloqueSeleccionado(div);
+          return;
+        }
+        bloqueSeleccionado = div;
+        marcarBloqueSeleccionado(div);
+      });
+
       txtArea.addEventListener('focus', () => {
         bloqueSeleccionado = div;
+        marcarBloqueSeleccionado(div);
       });
 
       setTimeout(() => autoAjustarTexto(txtArea), 50);
     }
 
     /* 2. Bloque Mixto */
-    function agregarBloqueMixto(texto = '', imagenData = '', posicion = 'derecha', tamano = 'mediana') {
+    function agregarBloqueMixto(texto = '', imagenData = '', posicion = 'derecha', tamano = 'mediana', titulo = '') {
       const div = document.createElement('div');
       div.className = 'block bloque-contenido';
       div.dataset.tipoBloque = 'mixto';
@@ -516,9 +559,11 @@ async function cargarDatos() {
               <option value="full" ${tamano === 'full' ? 'selected' : ''}>Ancho Completo (100%)</option>
             </select>
 
-            <button class="btn-del" onclick="this.closest('.block').remove()" style="margin-left:10px;">🗑️</button>
+            <button class="btn-del" onclick="eliminarBloque(this)" style="margin-left:10px;">🗑️</button>
           </div>
         </div>
+
+        <input type="text" class="input-field titulo-bloque" value="${titulo}" placeholder="Título del texto (opcional)" style="font-size:20px; font-weight:bold; margin-bottom:12px;">
 
         <div class="mixto-editor-wrap clearfix">
           <div class="img-container-editor pos-${posicion} size-${tamano}">
@@ -538,15 +583,91 @@ async function cargarDatos() {
         </div>
       `;
 
-document.getElementById('canvas').appendChild(div);
+insertarBloqueDebajoSeleccionado(div);
     hacerBloqueArrastrable(div);
     const txtArea = div.querySelector('.txt-contenido');
 
+    div.addEventListener('click', (e) => {
+        bloqueSeleccionado = div;
+        marcarBloqueSeleccionado(div);
+    });
+
     txtArea.addEventListener('focus', () => {
-        bloqueSeleccionado = txtArea;
+        bloqueSeleccionado = div;
+        marcarBloqueSeleccionado(div);
     });
 
     setTimeout(() => autoAjustarTexto(txtArea), 50);
+    }
+
+
+    function actualizarEstiloImagen(elemento) {
+      const bloque = elemento.closest('.bloque-contenido');
+      if (!bloque) return;
+
+      const posicion = bloque.querySelector('.select-posicion').value;
+      const tamano = bloque.querySelector('.select-tamano').value;
+      const contenedor = bloque.querySelector('.img-container-editor');
+
+      if (!contenedor) return;
+
+      contenedor.className = `img-container-editor pos-${posicion} size-${tamano}`;
+    }
+
+    function actualizarUrlImagen(input, imgId) {
+      const bloque = input.closest('.bloque-contenido');
+      const img = document.getElementById(imgId);
+      const hidden = bloque ? bloque.querySelector('.hidden-img-data') : null;
+
+      if (!img || !hidden) return;
+
+      const url = input.value.trim();
+      hidden.value = url;
+      img.src = url || 'https://via.placeholder.com/300x200?text=Cargar+Imagen';
+      img.style.opacity = url ? '1' : '0.6';
+
+      img.onerror = function() {
+        this.style.opacity = '0.6';
+      };
+    }
+
+    function subirArchivoImagen(input, imgId) {
+      const archivo = input.files && input.files[0];
+      if (!archivo) return;
+
+      if (!archivo.type.startsWith('image/')) {
+        alert('Selecciona un archivo de imagen válido.');
+        input.value = '';
+        return;
+      }
+
+      const lector = new FileReader();
+
+      lector.onload = function(e) {
+        const img = document.getElementById(imgId);
+        const bloque = input.closest('.bloque-contenido');
+        const hidden = bloque ? bloque.querySelector('.hidden-img-data') : null;
+        const urlInput = bloque ? bloque.querySelector('.txt-img-url') : null;
+
+        if (!img || !hidden) return;
+
+        const dataUrl = e.target.result;
+        img.src = dataUrl;
+        img.style.opacity = '1';
+        hidden.value = dataUrl;
+
+        if (urlInput) {
+          urlInput.value = '';
+        }
+      };
+
+      lector.onerror = function() {
+        alert('No se pudo cargar la imagen.');
+      };
+
+      lector.readAsDataURL(archivo);
+    }
+
     /* 3. Preguntas de Evaluación */
     function agregarBloquePregunta(datosExistentes = null) {
       contadorPreguntas++;
@@ -573,7 +694,7 @@ document.getElementById('canvas').appendChild(div);
             <button type="button" class="btn-add-option" id="btn_add_opt_${id}" onclick="ejecutarAgregarOpcion(${id})">
               + Agregar Opción
             </button>
-            <button class="btn-del" title="Eliminar Pregunta" onclick="this.closest('.block').remove()">🗑️</button>
+            <button class="btn-del" title="Eliminar Pregunta" onclick="eliminarBloque(this)">🗑️</button>
           </div>
         </div>
         
@@ -584,8 +705,14 @@ document.getElementById('canvas').appendChild(div);
         <div id="detalles_${id}"></div>
       `;
       
-      document.getElementById('canvas').appendChild(div);
+      insertarBloqueDebajoSeleccionado(div);
       hacerBloqueArrastrable(div);
+
+      div.addEventListener('click', () => {
+        bloqueSeleccionado = div;
+        marcarBloqueSeleccionado(div);
+      });
+
       cambiarTipo(id, tipo, datosExistentes);
     }
 
@@ -744,12 +871,19 @@ function abrirVistaPrevia() {
 
   // Recorrer TODOS los bloques del canvas en su orden físico real
   const todosLosBloques = document.querySelectorAll('#canvas .block');
-  let idxPregunta = 0;
+  // La numeración se reinicia cada vez que comienza un nuevo texto.
+  let numeroPreguntaEnTexto = 0;
+  let numeroTexto = 0;
 
   todosLosBloques.forEach((card) => {
     // A) SI ES BLOQUE DE TEXTO / MIXTO
     if (card.classList.contains('bloque-contenido')) {
+      // Cada bloque de texto inicia una nueva sección de preguntas.
+      numeroPreguntaEnTexto = 0;
+      numeroTexto++;
+
       const tipoBloque = card.dataset.tipoBloque;
+      const tituloBloque = card.querySelector('.titulo-bloque')?.value.trim() || '';
       const texto = card.querySelector('.txt-contenido').value.replace(/\n/g, '<br>');
 
       if (tipoBloque === 'mixto') {
@@ -773,18 +907,23 @@ function abrirVistaPrevia() {
 
         html += `
           <div style="margin-bottom: 25px; width: 100%;" class="clearfix">
+            ${tituloBloque ? `<h2 style="color:${currentColor}; margin:0 0 12px 0; font-size:22px;">${tituloBloque}</h2>` : ''}
             ${img ? `<img src="${img}" style="max-height:450px; object-fit:cover; border-radius:10px; box-shadow:0 3px 8px rgba(0,0,0,0.1); ${floatStyle}">` : ''}
             <div style="font-size:16px; line-height:1.7; color:#2D3436; text-align:justify;">${texto}</div>
             <div style="clear:both;"></div>
           </div>
         `;
       } else {
-        html += `<div style="font-size:16px; line-height:1.7; color:#2D3436; margin-bottom:20px; text-align:justify;">${texto}</div>`;
+        html += `<div style="margin-bottom:20px;">
+          ${tituloBloque ? `<h2 style="color:${currentColor}; margin:0 0 10px 0; font-size:22px;">${tituloBloque}</h2>` : ''}
+          <div style="font-size:16px; line-height:1.7; color:#2D3436; text-align:justify;">${texto}</div>
+        </div>`;
       }
     } 
     // B) SI ES BLOQUE DE PREGUNTA
     else if (card.classList.contains('bloque-pregunta')) {
-      const idx = idxPregunta++;
+      const numeroPregunta = ++numeroPreguntaEnTexto;
+      const idx = numeroPregunta;
       const tipo = card.querySelector('.tipo-select').value;
       const enunciado = card.querySelector('.enunciado').value;
 
@@ -793,7 +932,7 @@ function abrirVistaPrevia() {
       if (tipo === 'unir') ptsPregunta = card.querySelectorAll('.unir-row').length;
 
       html += `<div style="background:#F8FAFC; border-radius:12px; padding:20px; margin-top:20px; margin-bottom:20px; border-left:5px solid ${currentColor}; box-shadow:0 2px 6px rgba(0,0,0,0.03);">`;
-      html += `<p style="font-weight:bold; font-size:17px; margin-top:0;">${idx + 1}. ${enunciado} <span style="color:${currentColor}; font-size:14px;">(${ptsPregunta} pt${ptsPregunta > 1 ? 's' : ''})</span></p>`;
+      html += `<p style="font-weight:bold; font-size:17px; margin-top:0;">${idx}. ${enunciado} <span style="color:${currentColor}; font-size:14px;">(${ptsPregunta} pt${ptsPregunta > 1 ? 's' : ''})</span></p>`;
 
       if (tipo === 'multiple') {
         let correcta = '';
@@ -804,7 +943,7 @@ function abrirVistaPrevia() {
         card.querySelectorAll('.opcion-row').forEach(row => {
           const optText = row.querySelector('.txt-opcion').value;
           html += `
-            <button class="prev-opt-btn" onclick="evaluarMultiple(this, '${optText.replace(/'/g, "\\'")}', '${correcta.replace(/'/g, "\\'")}', 'q_${idx}', 1)">
+            <button class="prev-opt-btn" onclick="evaluarMultiple(this, '${optText.replace(/'/g, "\\'")}', '${correcta.replace(/'/g, "\\'")}', 'q_${numeroTexto}_${idx}', 1)">
               ${optText}
             </button>
           `;
@@ -816,7 +955,7 @@ function abrirVistaPrevia() {
         filasVF.forEach((row, vfIdx) => {
           const vfText = row.querySelector('.txt-vf-enunciado').value;
           const vfCorrecta = row.querySelector('.txt-vf-respuesta').value;
-          const itemKey = `q_${idx}_vf_${vfIdx}`;
+          const itemKey = `q_${numeroTexto}_${idx}_vf_${vfIdx}`;
 
           html += `
             <div class="vf-interactive-row">
@@ -1010,15 +1149,16 @@ async function guardarLeccion() {
   elementos.forEach((card, index) => {
     if (card.classList.contains('bloque-contenido')) {
       const tipoBloque = card.dataset.tipoBloque;
+      const titulo = card.querySelector('.titulo-bloque')?.value || '';
       const texto = card.querySelector('.txt-contenido').value;
 
       if (tipoBloque === 'mixto') {
         const imagen = card.querySelector('.hidden-img-data').value;
         const posicion = card.querySelector('.select-posicion').value;
         const tamano = card.querySelector('.select-tamano').value;
-        bloquesContenido.push({ orden: index, tipo: 'mixto', texto, imagen, posicion, tamano });
+        bloquesContenido.push({ orden: index, tipo: 'mixto', titulo, texto, imagen, posicion, tamano });
       } else {
-        bloquesContenido.push({ orden: index, tipo: 'texto', texto });
+        bloquesContenido.push({ orden: index, tipo: 'texto', titulo, texto });
       }
     } else if (card.classList.contains('bloque-pregunta')) {
       // Marcador para registrar dónde iba posicionada la pregunta
@@ -1101,6 +1241,8 @@ async function guardarLeccion() {
 
       bloque.addEventListener('dragstart', () => {
         bloque.classList.add('dragging');
+        bloqueSeleccionado = bloque;
+        marcarBloqueSeleccionado(bloque);
       });
 
       bloque.addEventListener('dragend', () => {
